@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f6f4">
+  <meta name="description" content="A calm, lightweight browser for Windows. Download Nagi for free.">
+  <title>Nagi — A lighter way to browse</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/config.js"></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar wrap">
+    <a class="brand" href="#top" aria-label="Nagi home"><img class="brand-mark" src="/logo.svg" alt=""><span>Nagi</span></a>
+    <nav aria-label="Main navigation"><a href="#features">Features</a><a href="#privacy">Privacy</a><a class="nav-download" href="#download">Download</a></nav>
+  </header>
+  <main id="top">
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="dot"></span> Built for Windows</p>
+        <h1>Make room<br>for the <em>web.</em></h1>
+        <p class="lede">A focused browser that starts quickly and keeps the useful things close. Powered by Windows’ built-in WebView2 engine.</p>
+        <div class="hero-actions"><a class="button primary" id="download" href="/downloads/Nagi-Installer.exe" download>Download Nagi <span aria-hidden="true">↗</span></a><span class="version" id="version">Windows 10 / 11 · 64-bit</span></div>
+        <p class="release-note" id="release-note" aria-live="polite">Free download · English installer · No account required</p>
+      </div>
+      <div class="browser-art" aria-label="Illustration of the Nagi browser window">
+        <div class="art-window">
+          <div class="art-top"><span class="art-logo">N</span><div class="art-tab active"><span class="tab-dot"></span> A quieter place to browse <i>×</i></div><b>＋</b></div>
+          <div class="art-toolbar"><span>‹</span><span>›</span><span>↻</span><div class="address"><span>⌕</span> Search or enter an address <small>Ctrl&nbsp; L</small></div><span>☆</span><span>◷</span><span>↓</span><span class="shield">◈</span></div>
+          <div class="art-page"><div class="art-mark">N</div><p class="art-kicker">YOUR BROWSING SPACE</p><strong>The web,<br><em>without detours.</em></strong><div class="art-search">Search the web <span>↵</span></div><div class="art-shortcuts"><span>W</span><span>G</span><span>+</span></div></div>
+        </div>
+        <div class="art-caption"><span>Quiet by design.</span><span>01 — Nagi</span></div>
+      </div>
+    </section>
+    <section class="metrics wrap" aria-label="Nagi at a glance"><div><strong>Lightweight</strong><span>Uses Windows’ built-in WebView2 engine</span></div><div><strong>Private by default</strong><span>Your profile stays on this PC</span></div><div><strong>Everyday tools</strong><span>Bookmarks, history and saved passwords</span></div></section>
+    <section class="features wrap" id="features">
+      <div class="section-heading"><p class="eyebrow">The essentials, considered</p><h2>Less browser.<br><em>More breathing room.</em></h2></div>
+      <div class="feature-grid">
+        <article><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 18 18 5M8 5h10v10M5 5v14h14"/></svg></span><h3>Get going quickly</h3><p>A clean start page, familiar shortcuts, and the WebView2 engine already maintained on Windows.</p></article>
+        <article><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5zM8 9h8M8 12h5M8 15h6"/></svg></span><h3>Keep the useful bits</h3><p>Save bookmarks, revisit your history, manage downloads, and let WebView2 remember passwords on this device.</p></article>
+        <article><span class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 19 6v5c0 4-2.8 7.5-7 10-4.2-2.5-7-6-7-10V6zM9 12l2 2 4-4"/></svg></span><h3>Browse with less noise</h3><p>Known advertising and tracking domains are filtered. Dark mode and 14 interface languages are built in.</p></article>
+      </div>
+    </section>
+    <section class="privacy" id="privacy"><div class="wrap privacy-inner"><div><p class="eyebrow">Your device, your profile</p><h2>Made to stay<br><em>on your side.</em></h2></div><p>Nagi keeps browser data in your Windows user profile. It does not need an account. Web pages still use memory based on what they load, so usage varies by site and open tabs.</p></div></section>
+    <section class="final-cta wrap"><div><p class="eyebrow">Ready when you are</p><h2>A little more space<br>to get things done.</h2></div><a class="button primary" id="download-bottom" href="/downloads/Nagi-Installer.exe" download>Get Nagi for Windows <span aria-hidden="true">↗</span></a></section>
+  </main>
+  <footer class="footer wrap"><a class="brand" href="#top"><img class="brand-mark" src="/logo.svg" alt=""><span>Nagi</span></a><span>Free for Windows · Releases hosted on GitHub</span><a href="https://github.com/" id="source-link" rel="noreferrer">Source & releases ↗</a></footer>
+</body>
+</html>

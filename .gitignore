@@ -1,0 +1,16 @@
+/rust/app/target/
+/installer/payload/
+/nagi-browser.exe
+/Nagi-Setup-*.exe
+/Nagi-Setup-*.bin
+/Nagi-Installer.exe
+*.pdb
+~Nagi-Installer*
+/.venv/
+/.tools/
+/.brand/refs/
+/.brand/fonts/cache/
+/.brand/fonts/cache-curated/
+/.brand/fonts/build/
+/.brand/fonts/checks*/
+/.brand/logo/fonts/

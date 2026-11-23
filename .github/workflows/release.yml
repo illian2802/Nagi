@@ -1,0 +1,86 @@
+name: Build and publish Nagi release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+      - name: Check release tag and set version
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Use a stable tag such as v0.4.0 (got $tag)" }
+          $version = $Matches[1]
+          "NAGI_RELEASE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $manifest = Get-Content rust/app/Cargo.toml -Raw
+          $manifest = [regex]::Replace($manifest, '(?m)^version = "[^"]+"', "version = `"$version`"", 1)
+          Set-Content rust/app/Cargo.toml $manifest -NoNewline
+          $setup = Get-Content installer/Nagi.iss -Raw
+          $setup = $setup -replace '#define MyAppVersion "[^"]+"', "#define MyAppVersion `"$version`""
+          $setup = $setup -replace 'OutputBaseFilename=Nagi-Setup-[^\r\n]+', "OutputBaseFilename=Nagi-Setup-$version"
+          Set-Content installer/Nagi.iss $setup -NoNewline
+          $bootstrap = Get-Content installer/bootstrap.rs -Raw
+          $bootstrap = $bootstrap -replace '0\.3\.3', $version
+          Set-Content installer/bootstrap.rs $bootstrap -NoNewline
+      - name: Build Nagi browser
+        shell: pwsh
+        env:
+          NAGI_GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          cargo build --release --manifest-path rust/app/Cargo.toml
+          Copy-Item rust/app/target/release/nagi-browser.exe nagi-browser.exe
+      - name: Build installer payload
+        shell: pwsh
+        run: |
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup compiler was not installed.' }
+          & $iscc installer/Nagi.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed: $LASTEXITCODE" }
+          $payload = 'installer/payload'
+          New-Item -ItemType Directory -Force $payload | Out-Null
+          Copy-Item "Nagi-Setup-$env:NAGI_RELEASE_VERSION.exe" "$payload/Nagi-Setup-$env:NAGI_RELEASE_VERSION.exe"
+          Get-ChildItem "Nagi-Setup-$env:NAGI_RELEASE_VERSION-*.bin" | Copy-Item -Destination $payload
+          rustc installer/bootstrap.rs -C opt-level=s -C strip=symbols -o Nagi-Installer.exe
+          if ($LASTEXITCODE -ne 0) { throw "Installer bootstrap compile failed: $LASTEXITCODE" }
+      - name: Upload release installer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: nagi-release-installer
+          path: Nagi-Installer.exe
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-release:
+    needs: windows-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release installer
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: nagi-release-installer
+          path: dist
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          name: Nagi ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/Nagi-Installer.exe
+          token: ${{ secrets.GITHUB_TOKEN }}
