@@ -1,10 +1,25 @@
 (() => {
+  const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (!motionPreference.matches && 'IntersectionObserver' in window) {
+    document.documentElement.classList.add('has-motion');
+    const revealObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.classList.add('is-visible');
+        revealObserver.unobserve(entry.target);
+      }
+    }, { threshold: 0.12, rootMargin: '0px 0px -24px 0px' });
+    document.querySelectorAll('[data-reveal]').forEach(element => revealObserver.observe(element));
+  }
+
   const repository = window.NAGI_SITE_CONFIG?.githubRepository?.trim() || '';
   const download = document.getElementById('download');
   const lowerDownload = document.getElementById('download-bottom');
   const note = document.getElementById('release-note');
   const version = document.getElementById('version');
   const source = document.getElementById('source-link');
+  const downloadVersion = document.getElementById('download-version');
+  const downloadFootnote = document.getElementById('download-footnote');
 
   if (!repository || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return;
   const releases = `https://github.com/${repository}/releases`;
@@ -34,10 +49,13 @@
       link.href = assetUrl.href;
       link.removeAttribute('download');
     }
-    version.textContent = `${release.tag_name} · Windows 10 / 11 · 64-bit`;
-    note.textContent = 'Latest stable release · Installer language selection included';
+    version.textContent = `${release.tag_name} · Windows · 64-bit`;
+    downloadVersion.textContent = `${release.tag_name} · 64-bit installer`;
+    note.textContent = 'Latest stable release';
+    downloadFootnote.textContent = 'Choose your language during setup';
   }).catch(() => {
-    note.textContent = 'GitHub release information is temporarily unavailable. You can still download the current installer.';
+    note.textContent = 'GitHub release info is temporarily unavailable';
+    downloadFootnote.textContent = 'The current installer is still available';
   }).finally(() => {
     clearTimeout(timeout);
   });
