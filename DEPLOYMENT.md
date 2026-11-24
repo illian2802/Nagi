@@ -1,37 +1,24 @@
-# GitHub, releases et site web Nagi
+# GitHub Releases and the Nagi website
 
-Rien dans ce projet ne publie automatiquement vers GitHub ou Vercel. La publication reste une action manuelle du propriétaire du compte.
+This project does not push code to GitHub or deploy to Vercel. Those remain manual actions by the repository owner. A pushed version tag starts GitHub Actions and publishes that release automatically.
 
-## 1. Créer le dépôt GitHub
+## Repository and website
 
-Crée un dépôt GitHub **public** (Nagi ne contient aucun jeton d’accès ; les mises à jour ne peuvent donc pas lire les releases d’un dépôt privé). Ajoute les fichiers du projet à la racine du dépôt, puis pousse-les sur `main`. Le `.gitignore` exclut les caches de compilation et les exécutables locaux.
-
-Le workflow `.github/workflows/release.yml` compile Nagi et intègre automatiquement le nom réel de ce dépôt dans le navigateur construit par GitHub Actions.
-
-## 2. Relier le site au dépôt
-
-Dans `site/config.js`, remplace la valeur vide avec le propriétaire et le nom exacts du dépôt :
+Keep the GitHub repository public so Nagi can check releases without a token embedded in the app. The website reads the repository name from `site/config.js`:
 
 ```js
-window.NAGI_SITE_CONFIG = { githubRepository: "mon-compte/nagi-browser" };
+window.NAGI_SITE_CONFIG = { githubRepository: "illian2802/Nagi" };
 ```
 
-Importe ensuite le dépôt dans Vercel et choisis `site` comme **Root Directory**. Le site est statique et n’a besoin ni de base de données ni de clé secrète. Avant la première release, il garde son installateur local de secours ; ensuite il pointe vers la release stable la plus récente.
+Import the repository into Vercel and set `site` as the Root Directory. It is a static site and needs no database or secret environment variables. The download page checks the latest stable GitHub release and picks the Windows installer or macOS disk image based on the visitor's platform.
 
-## 3. Créer la première release
+## Build verification
 
-Après avoir poussé le workflow et le code, crée la première release stable depuis un tag correspondant à la version de `rust/app/Cargo.toml`, actuellement `v0.3.3` :
+`.github/workflows/check.yml` builds the macOS app on Apple silicon and Intel runners when code is pushed to `main` or a pull request is opened. This check does not publish a release.
 
-```powershell
-git tag v0.3.3
-git push origin v0.3.3
-```
+## Create a release
 
-GitHub Actions compile alors l’application avec `owner/repository`, fabrique `Nagi-Installer.exe` et crée la GitHub Release. Installe cette version compilée par GitHub pour activer la vérification des mises à jour. Un exécutable local plus ancien, compilé sans `NAGI_GITHUB_REPOSITORY`, ne peut pas retrouver le dépôt tout seul.
-
-## 4. Publier une mise à jour
-
-Modifie la version dans `rust/app/Cargo.toml`, puis pousse le changement sur `main`. Crée et pousse ensuite le tag stable correspondant, par exemple :
+The existing public release is `v0.3.3`. After adding these changes to the repository, make a new stable version, for example `v0.3.4`, then push the branch and tag:
 
 ```powershell
 git tag v0.3.4
@@ -39,6 +26,12 @@ git push origin main
 git push origin v0.3.4
 ```
 
-Le workflow fabrique un installateur autonome et crée la release. Au lancement de Nagi, le navigateur vérifie la dernière release stable. Si une version plus récente existe, il ouvre Réglages et affiche le bouton de téléchargement. Celui-ci ouvre l’installateur GitHub dans le navigateur par défaut ; l’utilisateur lance l’installation pour appliquer la mise à jour. Nagi ne télécharge ni n’installe de mise à jour en silence.
+The tag starts `.github/workflows/release.yml`. GitHub Actions builds `Nagi-Installer.exe` for Windows and `Nagi-macOS-universal.dmg` for macOS. The macOS app combines native Apple silicon and Intel builds. It then creates a GitHub Release with both files.
 
-La création du dépôt, l’envoi du code, la première release et le déploiement Vercel doivent être effectués depuis les comptes GitHub/Vercel. Ce projet ne les exécute pas à ta place.
+## Updates
+
+GitHub builds embed the repository name in Nagi. At startup, Nagi checks the latest stable release and offers the asset for its operating system. The download opens in the default browser; the user runs the Windows installer or copies the Mac app into Applications. Nagi does not install updates silently. Locally built executables without `NAGI_GITHUB_REPOSITORY` cannot check this repository.
+
+## macOS distribution note
+
+The workflow currently packages an unsigned and unnotarized Mac app. It is suitable for build validation and controlled testing, but Gatekeeper may prevent normal opening after download. Before offering it to the public, sign the app and DMG with an Apple Developer ID certificate and notarize them with Apple's notary service. GitHub Actions will need the corresponding protected signing credentials. See [Apple Developer ID](https://developer.apple.com/developer-id/) and [Apple's notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution/).

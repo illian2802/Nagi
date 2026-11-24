@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f7f4">
-  <meta name="description" content="Meet Nagi, a straightforward Windows browser for everyday browsing.">
-  <meta property="og:title" content="Nagi — Your Windows browser, back to the basics">
+  <meta name="description" content="Meet Nagi, a straightforward browser for Windows and macOS.">
+  <meta property="og:title" content="Nagi — Your browser, back to the basics">
   <meta property="og:description" content="Tabs, search, bookmarks and downloads, in a browser built around the web.">
-  <title>Nagi — Your Windows browser, back to the basics</title>
+  <title>Nagi — Your browser, back to the basics</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="/fonts/NagiSans-Regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles.css">
@@ -30,12 +30,12 @@
   <main id="top">
     <section class="hero wrap">
       <div class="hero-copy" data-reveal>
-        <p class="eyebrow"><span class="eyebrow-rule"></span> For Windows 10 and 11</p>
-        <h1>Your Windows browser,<br><span>back to the basics.</span></h1>
+        <p class="eyebrow"><span class="eyebrow-rule"></span> <span id="platform-eyebrow">For Windows 10 and 11</span></p>
+        <h1><span id="hero-title">Your Windows browser,</span><br><span id="hero-title-accent">back to the basics.</span></h1>
         <p class="lede">Tabs, search, bookmarks and downloads—close at hand, with the web at the centre.</p>
         <div class="hero-actions">
           <a class="button primary" id="download" href="/downloads/Nagi-Installer.exe" download>
-            Download Nagi <span class="button-arrow" aria-hidden="true">↗</span>
+            <span data-download-label>Download Nagi</span><span class="button-arrow" aria-hidden="true">↗</span>
           </a>
           <a class="text-link" href="#features">Take a closer look <span aria-hidden="true">↓</span></a>
         </div>
@@ -70,14 +70,14 @@
             </div>
           </div>
         </div>
-        <div class="visual-caption"><span>Nagi for Windows</span><span>01 / New tab</span></div>
+        <div class="visual-caption"><span id="visual-platform">Nagi for Windows</span><span>01 / New tab</span></div>
       </div>
     </section>
 
     <section class="quick-facts wrap" aria-label="Nagi at a glance" data-reveal>
-      <div><span class="fact-index">01</span><p><strong>WebView2</strong><span>Uses Microsoft’s Windows web engine</span></p></div>
+      <div><span class="fact-index">01</span><p><strong id="engine-name">WebView2</strong><span id="engine-description">Uses Microsoft’s Windows web engine</span></p></div>
       <div><span class="fact-index">02</span><p><strong>Everyday tools</strong><span>Tabs, bookmarks and downloads</span></p></div>
-      <div><span class="fact-index">03</span><p><strong>Your profile</strong><span>Saved on this Windows account</span></p></div>
+      <div><span class="fact-index">03</span><p><strong>Your profile</strong><span id="profile-fact">Saved on this Windows account</span></p></div>
     </section>
 
     <section class="features wrap" id="features">
@@ -94,26 +94,26 @@
         <article class="feature" data-reveal>
           <span class="feature-number">02</span>
           <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4h12a2 2 0 0 1 2 2v15l-8-4-8 4V6a2 2 0 0 1 2-2Z"/><path d="M9 8h6"/></svg></div>
-          <div><h3>Keep the little things</h3><p>Save bookmarks, revisit history, manage downloads, and let WebView2 remember passwords on this device.</p></div>
+          <div><h3>Keep the little things</h3><p id="password-description">Save bookmarks, revisit history, manage downloads, and let WebView2 remember passwords on this device.</p></div>
         </article>
         <article class="feature" data-reveal>
           <span class="feature-number">03</span>
           <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 7 3v5c0 4.1-2.8 7.7-7 10-4.2-2.3-7-5.9-7-10V6z"/><path d="m9 12 2 2 4-4"/></svg></div>
-          <div><h3>A little less noise</h3><p>Known ad and tracking domains are filtered. Choose a search engine, turn on dark mode, and browse in 14 interface languages.</p></div>
+          <div><h3>A little less noise</h3><p id="filter-description">Known ad and tracking domains are filtered. Choose a search engine, turn on dark mode, and browse in 14 interface languages.</p></div>
         </article>
       </div>
     </section>
 
     <section class="privacy" id="privacy">
       <div class="privacy-inner wrap" data-reveal>
-        <div class="privacy-heading"><p class="eyebrow"><span class="eyebrow-rule"></span> Your browser profile</p><h2>Saved on your PC.<br><span>Not in a Nagi account.</span></h2></div>
-        <div class="privacy-copy"><p>Bookmarks, history, downloads and preferences stay in your Windows user profile. Password saving is handled by WebView2 on this device.</p><p>Websites you visit may still collect data under their own privacy policies. Nagi does not sync your profile to a Nagi account.</p></div>
+        <div class="privacy-heading"><p class="eyebrow"><span class="eyebrow-rule"></span> Your browser profile</p><h2>Saved on your device.<br><span>Not in a Nagi account.</span></h2></div>
+        <div class="privacy-copy"><p id="privacy-platform-copy">Bookmarks, history, downloads and preferences stay in your Windows user profile. Password saving is handled by WebView2 on this device.</p><p>Websites you visit may still collect data under their own privacy policies. Nagi does not sync your profile to a Nagi account.</p></div>
       </div>
     </section>
 
     <section class="download-section wrap" id="download-section" data-reveal>
-      <div class="download-copy"><p class="eyebrow"><span class="eyebrow-rule"></span> Ready for your PC</p><h2>Open a new<br>window on the web.</h2><p>Free to download for Windows 10 and 11. Choose your installer language during setup.</p></div>
-      <div class="download-card"><div class="download-card-top"><img src="/logo.svg" alt=""><div><strong>Nagi for Windows</strong><span id="download-version">64-bit · Installer</span></div></div><a class="button primary download-large" id="download-bottom" href="/downloads/Nagi-Installer.exe" download>Download Nagi <span class="button-arrow" aria-hidden="true">↗</span></a><p id="download-footnote">Free download · No account required</p></div>
+      <div class="download-copy"><p class="eyebrow"><span class="eyebrow-rule"></span> <span id="download-platform-label">Ready for your PC</span></p><h2>Open a new<br>window on the web.</h2><p id="download-platform-copy">Free to download for Windows 10 and 11. Choose your installer language during setup.</p></div>
+      <div class="download-card"><div class="download-card-top"><img src="/logo.svg" alt=""><div><strong id="download-product-name">Nagi for Windows</strong><span id="download-version">64-bit · Installer</span></div></div><a class="button primary download-large" id="download-bottom" href="/downloads/Nagi-Installer.exe" download><span data-download-label>Download Nagi</span><span class="button-arrow" aria-hidden="true">↗</span></a><p id="download-footnote">Free download · No account required</p></div>
     </section>
   </main>
 

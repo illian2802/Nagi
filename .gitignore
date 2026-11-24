@@ -4,6 +4,8 @@
 /Nagi-Setup-*.exe
 /Nagi-Setup-*.bin
 /Nagi-Installer.exe
+/Nagi-macOS-universal.dmg
+/Nagi.app/
 *.pdb
 ~Nagi-Installer*
 /.venv/

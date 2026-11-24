@@ -21,9 +21,12 @@ use tao::{
     window::{Icon, Window, WindowBuilder},
 };
 use url::Url;
+#[cfg(target_os = "macos")]
+use wry::WebViewExtMacOS;
+#[cfg(target_os = "windows")]
+use wry::{MemoryUsageLevel, WebViewExtWindows};
 use wry::{
-    MemoryUsageLevel, NewWindowFeatures, NewWindowResponse, PageLoadEvent, Rect, WebContext,
-    WebView, WebViewBuilder, WebViewExtWindows,
+    NewWindowFeatures, NewWindowResponse, PageLoadEvent, Rect, WebContext, WebView, WebViewBuilder,
     dpi::{LogicalPosition as WebPosition, LogicalSize as WebSize},
     http::Request,
 };
@@ -32,6 +35,7 @@ const TOOLBAR_HEIGHT: f64 = 108.0;
 const TOOLBAR_OVERLAY_HEIGHT: f64 = 560.0;
 const NEW_TAB_URL: &str = "nagi://newtab";
 const SEARCH_HOME_URL: &str = "https://www.google.com/";
+#[cfg(any(target_os = "windows", test))]
 const AD_HOSTS: &[&str] = &[
     "doubleclick.net",
     "googlesyndication.com",
@@ -161,7 +165,7 @@ impl Browser {
         initial_language: Option<String>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let window = WindowBuilder::new()
-            .with_title("Nagi — navigateur")
+            .with_title("Nagi")
             .with_inner_size(LogicalSize::new(1280.0, 820.0))
             .with_window_icon(Some(nagi_icon()?))
             .build(event_loop)?;
@@ -333,10 +337,10 @@ impl Browser {
         }
 
         if let Some(previous) = self.active_view() {
-            let _ = previous.set_memory_usage_level(MemoryUsageLevel::Low);
+            set_memory_usage_level(previous, false);
             let _ = previous.set_visible(false);
         }
-        let _ = view.set_memory_usage_level(MemoryUsageLevel::Normal);
+        set_memory_usage_level(&view, true);
 
         self.active_tab = id;
         self.tabs.push(Tab {
@@ -458,17 +462,17 @@ impl Browser {
                 }
             }
             "back" => {
-                if let Some(view) = self.active_view() {
-                    if view.can_go_back().unwrap_or(false) {
-                        let _ = view.go_back();
-                    }
+                if let Some(view) = self.active_view()
+                    && view.can_go_back().unwrap_or(false)
+                {
+                    let _ = view.go_back();
                 }
             }
             "forward" => {
-                if let Some(view) = self.active_view() {
-                    if view.can_go_forward().unwrap_or(false) {
-                        let _ = view.go_forward();
-                    }
+                if let Some(view) = self.active_view()
+                    && view.can_go_forward().unwrap_or(false)
+                {
+                    let _ = view.go_forward();
                 }
             }
             "reload" => {
@@ -505,23 +509,19 @@ impl Browser {
                     && item.complete
                     && item.success
                 {
-                    let _ = process::Command::new("explorer.exe")
-                        .arg(&item.path)
-                        .spawn();
+                    reveal_download(Path::new(&item.path));
                 }
             }
             "open-downloads-folder" => {
-                let _ = process::Command::new("explorer.exe")
-                    .arg(&self.downloads_directory)
-                    .spawn();
+                open_in_file_manager(&self.downloads_directory);
             }
             "open-update" => {
                 if let (Some(url), Some(repository)) = (
                     command.url.as_deref(),
                     option_env!("NAGI_GITHUB_REPOSITORY"),
-                ) && is_update_download_url(url, repository)
+                ) && is_update_download_url(url, repository, update_asset_name())
                 {
-                    let _ = process::Command::new("explorer.exe").arg(url).spawn();
+                    open_external_url(url);
                 }
             }
             "popover-state" => self.set_popover_open(command.open.unwrap_or(false)),
@@ -536,10 +536,10 @@ impl Browser {
                 self.sync_toolbar();
             }
             "reopen-tab" => {
-                if let Some(url) = self.recently_closed.pop() {
-                    if let Err(error) = self.create_tab(url) {
-                        eprintln!("Impossible de rouvrir l’onglet : {error}");
-                    }
+                if let Some(url) = self.recently_closed.pop()
+                    && let Err(error) = self.create_tab(url)
+                {
+                    eprintln!("Impossible de rouvrir l’onglet : {error}");
                 }
             }
             "activate-tab" => {
@@ -563,7 +563,7 @@ impl Browser {
         }
         self.active_tab = id;
         if let Some(view) = self.active_view() {
-            let _ = view.set_memory_usage_level(MemoryUsageLevel::Normal);
+            set_memory_usage_level(view, true);
             let _ = view.set_visible(true);
             let _ = view.focus();
         }
@@ -590,7 +590,7 @@ impl Browser {
             let next = self.tabs[index.min(self.tabs.len() - 1)].id;
             self.active_tab = next;
             if let Some(view) = self.active_view() {
-                let _ = view.set_memory_usage_level(MemoryUsageLevel::Normal);
+                set_memory_usage_level(view, true);
                 let _ = view.set_visible(true);
             }
         }
@@ -658,12 +658,15 @@ impl Browser {
             "downloads": &self.downloads,
             "settings": {
                 "dark_mode": self.preferences.dark_mode,
-                "ad_blocking": self.preferences.ad_blocking,
+                "ad_blocking": cfg!(target_os = "windows") && self.preferences.ad_blocking,
+                "ad_blocking_available": cfg!(target_os = "windows"),
                 "search_engine": self.preferences.search_engine
                 ,"restore_last_page": self.preferences.restore_last_page,
                 "language": self.preferences.language
                 ,"version": env!("CARGO_PKG_VERSION")
                 ,"update_repository": option_env!("NAGI_GITHUB_REPOSITORY").unwrap_or("")
+                ,"update_asset": update_asset_name()
+                ,"platform": if cfg!(target_os = "macos") { "macos" } else { "windows" }
             }
         });
         let script = format!("window.nagiSetState({state});");
@@ -812,10 +815,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn profile_directory() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    #[cfg(target_os = "windows")]
     let base = env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(env::temp_dir);
-    let directory = base.join("NagiBrowser").join("WebView2");
+    #[cfg(target_os = "macos")]
+    let base = env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(env::temp_dir)
+        .join("Library")
+        .join("Application Support");
+    let engine_profile = if cfg!(target_os = "macos") {
+        "WebKit"
+    } else {
+        "WebView2"
+    };
+    let directory = base.join("NagiBrowser").join(engine_profile);
     fs::create_dir_all(&directory)?;
     Ok(directory)
 }
@@ -848,14 +863,42 @@ fn is_web_url(value: &str) -> bool {
         .is_some_and(|url| matches!(url.scheme(), "http" | "https") && url.host_str().is_some())
 }
 
-fn is_update_download_url(value: &str, repository: &str) -> bool {
+fn update_asset_name() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "Nagi-macOS-universal.dmg"
+    } else {
+        "Nagi-Installer.exe"
+    }
+}
+
+fn is_update_download_url(value: &str, repository: &str, asset_name: &str) -> bool {
     let Ok(url) = Url::parse(value) else {
         return false;
     };
+    let Some((owner, name)) = repository.split_once('/') else {
+        return false;
+    };
+    if owner.is_empty() || name.is_empty() || name.contains('/') {
+        return false;
+    }
+    let Some(segments) = url.path_segments() else {
+        return false;
+    };
+    let segments: Vec<_> = segments.collect();
     url.scheme() == "https"
         && url.host_str() == Some("github.com")
-        && url.path().starts_with(&format!("/{repository}/releases/download/"))
-        && url.path().ends_with("/Nagi-Installer.exe")
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.port().is_none()
+        && url.query().is_none()
+        && url.fragment().is_none()
+        && segments.len() == 6
+        && segments[0] == owner
+        && segments[1] == name
+        && segments[2] == "releases"
+        && segments[3] == "download"
+        && !segments[4].is_empty()
+        && segments[5] == asset_name
 }
 
 fn normalize_language(value: &str) -> &'static str {
@@ -890,8 +933,11 @@ fn save_json<T: Serialize>(path: &Path, value: &T) -> std::io::Result<()> {
 }
 
 fn downloads_directory() -> PathBuf {
-    env::var_os("USERPROFILE")
-        .map(PathBuf::from)
+    #[cfg(target_os = "windows")]
+    let home = env::var_os("USERPROFILE");
+    #[cfg(target_os = "macos")]
+    let home = env::var_os("HOME");
+    home.map(PathBuf::from)
         .unwrap_or_else(env::temp_dir)
         .join("Downloads")
         .join("Nagi")
@@ -986,8 +1032,16 @@ fn point_in_polygon(x: f32, y: f32, points: &[(f32, f32)]) -> bool {
 
 fn nagi_icon() -> Result<Icon, Box<dyn std::error::Error>> {
     const N_MAIN: [(f32, f32); 11] = [
-        (10.0, 20.0), (10.0, 9.0), (17.0, 9.0), (32.0, 26.0), (32.0, 9.0),
-        (44.0, 9.0), (39.0, 14.0), (39.0, 39.0), (32.0, 39.0), (17.0, 22.0),
+        (10.0, 20.0),
+        (10.0, 9.0),
+        (17.0, 9.0),
+        (32.0, 26.0),
+        (32.0, 9.0),
+        (44.0, 9.0),
+        (39.0, 14.0),
+        (39.0, 39.0),
+        (32.0, 39.0),
+        (17.0, 22.0),
         (17.0, 20.0),
     ];
     const N_FOOT: [(f32, f32); 4] = [(10.0, 39.0), (10.0, 23.0), (17.0, 23.0), (17.0, 39.0)];
@@ -1021,6 +1075,7 @@ fn nagi_icon() -> Result<Icon, Box<dyn std::error::Error>> {
     Ok(Icon::from_rgba(pixels, 64, 64)?)
 }
 
+#[cfg(target_os = "windows")]
 fn enable_ad_blocking(view: &WebView, enabled: Arc<AtomicBool>) {
     use webview2_com::{
         CoTaskMemPWSTR,
@@ -1077,6 +1132,10 @@ fn enable_ad_blocking(view: &WebView, enabled: Arc<AtomicBool>) {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn enable_ad_blocking(_view: &WebView, _enabled: Arc<AtomicBool>) {}
+
+#[cfg(any(target_os = "windows", test))]
 fn is_ad_host(uri: &str) -> bool {
     let Ok(parsed) = Url::parse(uri) else {
         return false;
@@ -1089,6 +1148,7 @@ fn is_ad_host(uri: &str) -> bool {
         .any(|domain| host == *domain || host.ends_with(&format!(".{domain}")))
 }
 
+#[cfg(target_os = "windows")]
 fn enable_password_autosave(view: &WebView) {
     use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings4;
     use windows_core::Interface;
@@ -1108,6 +1168,22 @@ fn enable_password_autosave(view: &WebView) {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn enable_password_autosave(_view: &WebView) {}
+
+#[cfg(target_os = "windows")]
+fn set_memory_usage_level(view: &WebView, active: bool) {
+    let level = if active {
+        MemoryUsageLevel::Normal
+    } else {
+        MemoryUsageLevel::Low
+    };
+    let _ = view.set_memory_usage_level(level);
+}
+
+#[cfg(target_os = "macos")]
+fn set_memory_usage_level(_view: &WebView, _active: bool) {}
+
 fn toolbar_bounds(window: &Window, overlay: bool) -> Rect {
     let size = window.inner_size().to_logical::<f64>(window.scale_factor());
     Rect {
@@ -1124,6 +1200,7 @@ fn toolbar_bounds(window: &Window, overlay: bool) -> Rect {
     }
 }
 
+#[cfg(target_os = "windows")]
 fn raise_toolbar(toolbar: &WebView) {
     use windows::Win32::UI::WindowsAndMessaging::{
         HWND_TOP, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SetWindowPos,
@@ -1143,6 +1220,44 @@ fn raise_toolbar(toolbar: &WebView) {
     };
 }
 
+#[cfg(target_os = "macos")]
+fn raise_toolbar(toolbar: &WebView) {
+    use objc2_app_kit::{NSView, NSWindowOrderingMode};
+
+    let webview = toolbar.webview();
+    let toolbar_view: &NSView = &webview;
+    // SAFETY: Wry owns this live WKWebView, and this runs on the GUI event-loop thread.
+    if let Some(parent) = unsafe { toolbar_view.superview() } {
+        parent.addSubview_positioned_relativeTo(toolbar_view, NSWindowOrderingMode::Above, None);
+    }
+}
+
+fn reveal_download(path: &Path) {
+    #[cfg(target_os = "windows")]
+    let mut command = process::Command::new("explorer.exe");
+    #[cfg(target_os = "macos")]
+    let mut command = process::Command::new("open");
+    #[cfg(target_os = "macos")]
+    command.arg("-R");
+    let _ = command.arg(path).spawn();
+}
+
+fn open_in_file_manager(path: &Path) {
+    #[cfg(target_os = "windows")]
+    let mut command = process::Command::new("explorer.exe");
+    #[cfg(target_os = "macos")]
+    let mut command = process::Command::new("open");
+    let _ = command.arg(path).spawn();
+}
+
+fn open_external_url(url: &str) {
+    #[cfg(target_os = "windows")]
+    let mut command = process::Command::new("explorer.exe");
+    #[cfg(target_os = "macos")]
+    let mut command = process::Command::new("open");
+    let _ = command.arg(url).spawn();
+}
+
 fn view_bounds(window: &Window) -> Rect {
     let size = window.inner_size().to_logical::<f64>(window.scale_factor());
     let toolbar = TOOLBAR_HEIGHT.min(size.height);
@@ -1158,20 +1273,21 @@ fn resolve_input(input: &str, search_engine: &str) -> String {
         return SEARCH_HOME_URL.to_owned();
     }
 
-    if let Ok(parsed) = Url::parse(trimmed) {
-        if matches!(parsed.scheme(), "http" | "https") && parsed.host_str().is_some() {
-            return parsed.into();
-        }
+    if let Ok(parsed) = Url::parse(trimmed)
+        && matches!(parsed.scheme(), "http" | "https")
+        && parsed.host_str().is_some()
+    {
+        return parsed.into();
     }
 
     if !trimmed.chars().any(char::is_whitespace)
         && (trimmed.starts_with("localhost") || trimmed.contains('.'))
     {
         let candidate = format!("https://{trimmed}");
-        if let Ok(parsed) = Url::parse(&candidate) {
-            if parsed.host_str().is_some() {
-                return parsed.into();
-            }
+        if let Ok(parsed) = Url::parse(&candidate)
+            && parsed.host_str().is_some()
+        {
+            return parsed.into();
         }
     }
 
@@ -1193,3 +1309,54 @@ fn tab_label(url: &str) -> String {
         .unwrap_or_else(|| "Nouvel onglet".to_owned())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn update_link_accepts_only_the_exact_release_asset() {
+        assert!(is_update_download_url(
+            "https://github.com/kenzo/nagi-browser/releases/download/v0.4.0/Nagi-Installer.exe",
+            "kenzo/nagi-browser",
+            "Nagi-Installer.exe"
+        ));
+        assert!(is_update_download_url(
+            "https://github.com/kenzo/nagi-browser/releases/download/v0.4.0/Nagi-macOS-universal.dmg",
+            "kenzo/nagi-browser",
+            "Nagi-macOS-universal.dmg"
+        ));
+    }
+
+    #[test]
+    fn update_link_rejects_untrusted_urls_and_paths() {
+        let repository = "kenzo/nagi-browser";
+        for url in [
+            "http://github.com/kenzo/nagi-browser/releases/download/v0.4.0/Nagi-Installer.exe",
+            "https://github.com.evil.test/kenzo/nagi-browser/releases/download/v0.4.0/Nagi-Installer.exe",
+            "https://github.com/other/nagi-browser/releases/download/v0.4.0/Nagi-Installer.exe",
+            "https://github.com/kenzo/nagi-browser/releases/download/v0.4.0/Nagi-Installer.exe/extra",
+            "https://github.com/kenzo/nagi-browser/releases/download/v0.4.0/Nagi-Installer.exe?next=https://evil.test",
+            "https://user@github.com/kenzo/nagi-browser/releases/download/v0.4.0/Nagi-Installer.exe",
+            "https://github.com:444/kenzo/nagi-browser/releases/download/v0.4.0/Nagi-Installer.exe",
+        ] {
+            assert!(
+                !is_update_download_url(url, repository, "Nagi-Installer.exe"),
+                "accepted {url}"
+            );
+        }
+    }
+
+    #[test]
+    fn search_input_does_not_navigate_to_script_schemes() {
+        let result = resolve_input("javascript:alert(1)", "google");
+        assert!(result.starts_with("https://www.google.com/search?"));
+        assert!(!result.starts_with("javascript:"));
+    }
+
+    #[test]
+    fn ad_host_matching_respects_domain_boundaries() {
+        assert!(is_ad_host("https://doubleclick.net/ad.js"));
+        assert!(is_ad_host("https://sub.doubleclick.net/ad.js"));
+        assert!(!is_ad_host("https://notdoubleclick.net/ad.js"));
+    }
+}

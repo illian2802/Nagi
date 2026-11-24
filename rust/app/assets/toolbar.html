@@ -161,7 +161,7 @@
       <label class="setting-row"><span data-i18n="searchEngine">Moteur de recherche</span>
         <select id="search-engine"><option value="google">Google</option><option value="duckduckgo">DuckDuckGo</option><option value="bing">Bing</option></select>
       </label>
-      <label class="setting-check"><input id="ad-blocking" type="checkbox"> <span data-i18n="blockAds">Bloquer les domaines publicitaires connus</span></label>
+      <label class="setting-check" id="ad-blocking-row"><input id="ad-blocking" type="checkbox"> <span data-i18n="blockAds">Bloquer les domaines publicitaires connus</span></label>
       <label class="setting-check"><input id="restore-last-page" type="checkbox"> <span data-i18n="resume">Reprendre la dernière page au démarrage</span></label>
       <label class="setting-row"><span data-i18n="language">Langue de l’interface</span>
         <select id="language-select"></select>
@@ -196,6 +196,8 @@
     let notifiedUpdateKey = '';
     let updateRepository = '';
     let updateCurrentVersion = '';
+    let updateAssetName = 'Nagi-Installer.exe';
+    let adBlockingAvailable = true;
 
     function parseStableVersion(value) {
       const match = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(value || '');
@@ -214,10 +216,11 @@
       return false;
     }
 
-    function checkForUpdates(repository, currentVersion, force = false) {
-      const key = `${repository}|${currentVersion}`;
+    function checkForUpdates(repository, currentVersion, assetName, force = false) {
+      const key = `${repository}|${currentVersion}|${assetName}`;
       updateRepository = repository;
       updateCurrentVersion = currentVersion;
+      updateAssetName = assetName;
       if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
         updateButton.removeAttribute('data-url');
         updateButton.disabled = true;
@@ -239,16 +242,15 @@
         if (!response.ok) throw new Error('Release unavailable');
         return response.json();
       }).then(release => {
-        const asset = release.assets?.find(item => item.name === 'Nagi-Installer.exe');
+        const asset = release.assets?.find(item => item.name === assetName);
         const latestVersion = parseStableVersion(release.tag_name || '');
         const assetUrl = (() => {
           try { return new URL(asset?.browser_download_url || ''); } catch { return null; }
         })();
-        const expectedPathPrefix = `/${repository}/releases/download/`;
+        const expectedPath = `/${repository}/releases/download/${release.tag_name}/${assetName}`;
         const safeAsset = assetUrl?.protocol === 'https:' && assetUrl.hostname === 'github.com' && !assetUrl.port
           && assetUrl.username === '' && assetUrl.password === '' && !assetUrl.search && !assetUrl.hash
-          && assetUrl.pathname.startsWith(expectedPathPrefix)
-          && assetUrl.pathname.endsWith('/Nagi-Installer.exe');
+          && assetUrl.pathname === expectedPath;
         if (release.draft === true || release.prerelease === true || !latestVersion || !safeAsset) {
           throw new Error('Invalid or incomplete GitHub release');
         }
@@ -320,9 +322,12 @@
       document.documentElement.dataset.theme = settings.dark_mode ? 'dark' : 'light';
       document.getElementById('theme-select').value = settings.dark_mode ? 'dark' : 'light';
       document.getElementById('search-engine').value = settings.search_engine || 'google';
-      document.getElementById('ad-blocking').checked = settings.ad_blocking !== false;
+      const adBlockingRow = document.getElementById('ad-blocking-row');
+      adBlockingAvailable = settings.ad_blocking_available !== false;
+      adBlockingRow.hidden = !adBlockingAvailable;
+      document.getElementById('ad-blocking').checked = settings.ad_blocking === true;
       document.getElementById('restore-last-page').checked = settings.restore_last_page !== false;
-      checkForUpdates(settings.update_repository || '', settings.version || '');
+      checkForUpdates(settings.update_repository || '', settings.version || '', settings.update_asset || 'Nagi-Installer.exe');
       const progress = document.getElementById('loading-track');
       if (loading) { progress.classList.remove('done'); progress.classList.add('loading'); }
       else if (progress.classList.contains('loading')) {
@@ -338,7 +343,7 @@
       const titleKeys = { bookmarks: 'favorites', history: 'history', downloads: 'downloads', settings: 'settings' };
       document.getElementById('popover-title').textContent = t(titleKeys[currentPanel]);
       document.getElementById('panel-count').textContent = currentPanel === 'settings' ? '' : `${items.length}`;
-      document.getElementById('protection-note').hidden = currentPanel !== 'bookmarks';
+      document.getElementById('protection-note').hidden = currentPanel !== 'bookmarks' || !adBlockingAvailable;
       document.getElementById('downloads-folder').hidden = currentPanel !== 'downloads';
       document.getElementById('settings-panel').hidden = currentPanel !== 'settings';
       list.hidden = currentPanel === 'settings';
@@ -388,7 +393,7 @@
     document.getElementById('clear-history').addEventListener('click', () => send('clear-history'));
     updateButton.addEventListener('click', () => {
       if (updateButton.dataset.url) send('open-update', { url: updateButton.dataset.url });
-      else checkForUpdates(updateRepository, updateCurrentVersion, true);
+      else checkForUpdates(updateRepository, updateCurrentVersion, updateAssetName, true);
     });
     document.getElementById('address-form').addEventListener('submit', event => { event.preventDefault(); send('navigate', { url: address.value }); });
     address.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); send('navigate', { url: address.value }); } });
