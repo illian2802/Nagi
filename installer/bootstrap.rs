@@ -4,9 +4,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-const SETUP: &[u8] = include_bytes!("payload/Nagi-Setup-0.3.3.exe");
-const PART0: &[u8] = include_bytes!("payload/Nagi-Setup-0.3.3-0.bin");
-const PART1: &[u8] = include_bytes!("payload/Nagi-Setup-0.3.3-1.bin");
+const SETUP: &[u8] = include_bytes!("payload/Nagi-Setup-0.4.0.exe");
+const PART0: &[u8] = include_bytes!("payload/Nagi-Setup-0.4.0-0.bin");
+const PART1: &[u8] = include_bytes!("payload/Nagi-Setup-0.4.0-1.bin");
 
 #[link(name = "user32")]
 unsafe extern "system" {
@@ -22,10 +22,10 @@ fn show_error(message: &str) {
 fn run() -> Result<(), String> {
     let dir: PathBuf = std::env::temp_dir().join(format!("Nagi-Setup-{}", std::process::id()));
     fs::create_dir_all(&dir).map_err(|e| format!("Impossible de préparer l'installation : {e}"))?;
-    fs::write(dir.join("Nagi-Setup-0.3.3.exe"), SETUP).map_err(|e| format!("Impossible de décompresser Nagi : {e}"))?;
-    fs::write(dir.join("Nagi-Setup-0.3.3-0.bin"), PART0).map_err(|e| format!("Impossible de décompresser Nagi : {e}"))?;
-    fs::write(dir.join("Nagi-Setup-0.3.3-1.bin"), PART1).map_err(|e| format!("Impossible de décompresser Nagi : {e}"))?;
-    let status = Command::new(dir.join("Nagi-Setup-0.3.3.exe"))
+    fs::write(dir.join("Nagi-Setup-0.4.0.exe"), SETUP).map_err(|e| format!("Impossible de décompresser Nagi : {e}"))?;
+    fs::write(dir.join("Nagi-Setup-0.4.0-0.bin"), PART0).map_err(|e| format!("Impossible de décompresser Nagi : {e}"))?;
+    fs::write(dir.join("Nagi-Setup-0.4.0-1.bin"), PART1).map_err(|e| format!("Impossible de décompresser Nagi : {e}"))?;
+    let status = Command::new(dir.join("Nagi-Setup-0.4.0.exe"))
         .current_dir(&dir)
         .status()
         .map_err(|e| format!("Impossible de lancer l'assistant d'installation : {e}"))?;

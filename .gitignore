@@ -5,6 +5,8 @@
 /Nagi-Setup-*.bin
 /Nagi-Installer.exe
 /Nagi-macOS-universal.dmg
+/Nagi-Linux-x86_64.tar.gz
+/Nagi-Linux-x86_64/
 /Nagi.app/
 *.pdb
 ~Nagi-Installer*

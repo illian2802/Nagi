@@ -21,8 +21,12 @@
   const downloadVersion = document.getElementById('download-version');
   const downloadFootnote = document.getElementById('download-footnote');
   const downloadLabels = document.querySelectorAll('[data-download-label]');
-  const isMac = /Macintosh|Mac OS X/.test(navigator.userAgent) || /Mac/.test(navigator.platform || '');
-  const assetName = isMac ? 'Nagi-macOS-universal.dmg' : 'Nagi-Installer.exe';
+  const userAgent = navigator.userAgent || '';
+  const isMac = /Macintosh|Mac OS X/.test(userAgent) || /Mac/.test(navigator.platform || '');
+  const isLinux = !isMac && !/Android/.test(userAgent)
+    && (/Linux/.test(userAgent) || /Linux/.test(navigator.platform || ''));
+  const assetName = isMac ? 'Nagi-macOS-universal.dmg'
+    : isLinux ? 'Nagi-Linux-x86_64.tar.gz' : 'Nagi-Installer.exe';
 
   if (isMac) {
     for (const link of [download, lowerDownload]) {
@@ -51,14 +55,43 @@
     for (const label of downloadLabels) label.textContent = 'Download for macOS';
   }
 
+  if (isLinux) {
+    for (const link of [download, lowerDownload]) {
+      link.removeAttribute('href');
+      link.removeAttribute('download');
+      link.setAttribute('aria-disabled', 'true');
+    }
+    document.title = 'Nagi — Your Linux browser, back to the basics';
+    document.querySelector('meta[name="description"]')?.setAttribute('content', 'Meet Nagi, a straightforward Linux browser for everyday browsing.');
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', 'Nagi — Your Linux browser, back to the basics');
+    document.getElementById('platform-eyebrow').textContent = 'For Linux x86_64';
+    document.getElementById('hero-title').textContent = 'Your Linux browser,';
+    document.getElementById('engine-name').textContent = 'WebKitGTK';
+    document.getElementById('engine-description').textContent = 'Uses your system’s WebKitGTK 4.1 engine';
+    document.getElementById('filter-description').textContent = 'Choose a search engine, turn on dark mode, and browse in 14 interface languages. The current ad filter is available in the Windows release.';
+    document.getElementById('privacy-platform-copy').textContent = 'Bookmarks, history, downloads and preferences stay in your Linux user profile. WebKitGTK handles website data on this device.';
+    document.getElementById('password-description').textContent = 'Save bookmarks, revisit history and manage downloads. Linux WebKitGTK does not currently provide Nagi with a built-in password manager.';
+    document.getElementById('profile-fact').textContent = 'Saved in your Linux user profile';
+    document.getElementById('visual-platform').textContent = 'Nagi for Linux';
+    document.getElementById('download-platform-label').textContent = 'For Linux x86_64';
+    document.getElementById('download-platform-copy').textContent = 'Built for Ubuntu 24.04 and compatible Linux desktops with WebKitGTK 4.1.';
+    document.getElementById('download-product-name').textContent = 'Nagi for Linux';
+    document.getElementById('download-version').textContent = 'x86_64 · tar.gz';
+    version.textContent = 'Linux · x86_64';
+    note.textContent = 'Linux release coming soon';
+    downloadFootnote.textContent = 'Extract the archive and run install.sh';
+    for (const label of downloadLabels) label.textContent = 'Download for Linux';
+  }
+
   if (!repository || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
-    if (isMac) {
+    if (isMac || isLinux) {
       for (const link of [download, lowerDownload]) {
         link.removeAttribute('href');
         link.setAttribute('aria-disabled', 'true');
       }
-      for (const label of downloadLabels) label.textContent = 'macOS release coming soon';
-      note.textContent = 'The macOS installer is not available yet';
+      const platformLabel = isMac ? 'macOS' : 'Linux';
+      for (const label of downloadLabels) label.textContent = `${platformLabel} release coming soon`;
+      note.textContent = `${platformLabel} release coming soon`;
     }
     return;
   }
@@ -75,15 +108,18 @@
     return response.json();
   }).then(release => {
     const installer = release.assets?.find(asset => asset.name === assetName);
-    if (isMac && !installer) {
-      note.textContent = 'macOS release coming soon';
-      downloadFootnote.textContent = 'The Mac app will be available after signing and notarization';
+    if ((isMac || isLinux) && !installer) {
+      const platformLabel = isMac ? 'macOS' : 'Linux';
+      note.textContent = `${platformLabel} release coming soon`;
+      downloadFootnote.textContent = isMac
+        ? 'The Mac app will be available after signing and notarization'
+        : 'The Linux archive is being prepared';
       for (const link of [download, lowerDownload]) {
         link.removeAttribute('href');
         link.removeAttribute('download');
         link.setAttribute('aria-disabled', 'true');
       }
-      for (const label of downloadLabels) label.textContent = 'macOS release coming soon';
+      for (const label of downloadLabels) label.textContent = `${platformLabel} release coming soon`;
       return;
     }
     const tag = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(release.tag_name || '');
@@ -106,6 +142,10 @@
       version.textContent = `${release.tag_name} · macOS · Universal`;
       downloadVersion.textContent = `${release.tag_name} · Universal DMG`;
       downloadFootnote.textContent = 'For Apple silicon and Intel Macs';
+    } else if (isLinux) {
+      version.textContent = `${release.tag_name} · Linux · x86_64`;
+      downloadVersion.textContent = `${release.tag_name} · x86_64 archive`;
+      downloadFootnote.textContent = 'Ubuntu 24.04 or compatible WebKitGTK 4.1 system';
     } else {
       downloadVersion.textContent = `${release.tag_name} · 64-bit installer`;
       downloadFootnote.textContent = 'Choose your language during setup';
@@ -113,8 +153,10 @@
     note.textContent = 'Latest stable release';
   }).catch(() => {
     note.textContent = 'GitHub release info is temporarily unavailable';
-    downloadFootnote.textContent = isMac ? 'Check back after the next macOS release' : 'The current installer is still available';
-    if (isMac) {
+    downloadFootnote.textContent = (isMac || isLinux)
+      ? `Check back after the next ${isMac ? 'macOS' : 'Linux'} release`
+      : 'The current installer is still available';
+    if (isMac || isLinux) {
       for (const link of [download, lowerDownload]) {
         link.href = releases;
         link.removeAttribute('download');

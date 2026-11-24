@@ -30,6 +30,8 @@ use wry::{
     dpi::{LogicalPosition as WebPosition, LogicalSize as WebSize},
     http::Request,
 };
+#[cfg(target_os = "linux")]
+use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
 const TOOLBAR_HEIGHT: f64 = 108.0;
 const TOOLBAR_OVERLAY_HEIGHT: f64 = 560.0;
@@ -137,6 +139,8 @@ struct Tab {
 
 struct Browser {
     window: Window,
+    #[cfg(target_os = "linux")]
+    container: gtk::Fixed,
     toolbar: WebView,
     tabs: Vec<Tab>,
     active_tab: u64,
@@ -169,6 +173,19 @@ impl Browser {
             .with_inner_size(LogicalSize::new(1280.0, 820.0))
             .with_window_icon(Some(nagi_icon()?))
             .build(event_loop)?;
+        #[cfg(target_os = "linux")]
+        let container = {
+            use gtk::prelude::*;
+            use tao::platform::unix::WindowExtUnix;
+
+            let container = gtk::Fixed::new();
+            let Some(root) = window.default_vbox() else {
+                return Err("Tao did not create its GTK root container".into());
+            };
+            root.pack_start(&container, true, true, 0);
+            container.show();
+            container
+        };
         let proxy = event_loop.create_proxy();
         let profile = profile_directory()?;
         let bookmarks_file = profile.parent().unwrap_or(&profile).join("bookmarks.json");
@@ -190,7 +207,7 @@ impl Browser {
         let mut context = WebContext::new(Some(profile));
         let toolbar_proxy = proxy.clone();
         let ready_proxy = proxy.clone();
-        let toolbar = WebViewBuilder::new_with_web_context(&mut context)
+        let toolbar_builder = WebViewBuilder::new_with_web_context(&mut context)
             .with_bounds(toolbar_bounds(&window, false))
             .with_transparent(true)
             .with_initialization_script(include_str!("../assets/i18n.js"))
@@ -200,11 +217,16 @@ impl Browser {
             })
             .with_on_page_load_handler(move |_, _| {
                 let _ = ready_proxy.send_event(AppEvent::ToolbarReady);
-            })
-            .build_as_child(&window)?;
+            });
+        #[cfg(target_os = "linux")]
+        let toolbar = toolbar_builder.build_gtk(&container)?;
+        #[cfg(not(target_os = "linux"))]
+        let toolbar = toolbar_builder.build_as_child(&window)?;
 
         let mut browser = Self {
             window,
+            #[cfg(target_os = "linux")]
+            container,
             toolbar,
             tabs: Vec::new(),
             active_tab: 0,
@@ -329,6 +351,9 @@ impl Browser {
         } else {
             builder = builder.with_url("about:blank");
         }
+        #[cfg(target_os = "linux")]
+        let view = builder.build_gtk(&self.container)?;
+        #[cfg(not(target_os = "linux"))]
         let view = builder.build_as_child(&self.window)?;
         enable_password_autosave(&view);
         enable_ad_blocking(&view, ad_blocking_enabled);
@@ -356,7 +381,7 @@ impl Browser {
             loading: false,
         });
         if self.popover_open {
-            raise_toolbar(&self.toolbar);
+            self.raise_toolbar();
         }
         self.sync_toolbar();
         Ok(())
@@ -367,6 +392,13 @@ impl Browser {
             .iter()
             .find(|tab| tab.id == self.active_tab)
             .map(|tab| &tab.view)
+    }
+
+    fn raise_toolbar(&self) {
+        #[cfg(target_os = "linux")]
+        raise_toolbar(&self.toolbar, &self.container);
+        #[cfg(not(target_os = "linux"))]
+        raise_toolbar(&self.toolbar);
     }
 
     fn handle_event(&mut self, event: AppEvent) {
@@ -603,7 +635,7 @@ impl Browser {
             .toolbar
             .set_bounds(toolbar_bounds(&self.window, self.popover_open));
         if self.popover_open {
-            raise_toolbar(&self.toolbar);
+            self.raise_toolbar();
         }
         let bounds = view_bounds(&self.window);
         for tab in &self.tabs {
@@ -620,7 +652,7 @@ impl Browser {
             .toolbar
             .set_bounds(toolbar_bounds(&self.window, self.popover_open));
         if self.popover_open {
-            raise_toolbar(&self.toolbar);
+            self.raise_toolbar();
         }
     }
 
@@ -666,7 +698,7 @@ impl Browser {
                 ,"version": env!("CARGO_PKG_VERSION")
                 ,"update_repository": option_env!("NAGI_GITHUB_REPOSITORY").unwrap_or("")
                 ,"update_asset": update_asset_name()
-                ,"platform": if cfg!(target_os = "macos") { "macos" } else { "windows" }
+                ,"platform": if cfg!(target_os = "macos") { "macos" } else if cfg!(target_os = "linux") { "linux" } else { "windows" }
             }
         });
         let script = format!("window.nagiSetState({state});");
@@ -825,10 +857,19 @@ fn profile_directory() -> Result<PathBuf, Box<dyn std::error::Error>> {
         .unwrap_or_else(env::temp_dir)
         .join("Library")
         .join("Application Support");
-    let engine_profile = if cfg!(target_os = "macos") {
-        "WebKit"
-    } else {
+    #[cfg(target_os = "linux")]
+    let base = env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| {
+            env::var_os("HOME")
+                .map(PathBuf::from)
+                .map(|home| home.join(".local").join("share"))
+        })
+        .unwrap_or_else(env::temp_dir);
+    let engine_profile = if cfg!(target_os = "windows") {
         "WebView2"
+    } else {
+        "WebKit"
     };
     let directory = base.join("NagiBrowser").join(engine_profile);
     fs::create_dir_all(&directory)?;
@@ -866,6 +907,8 @@ fn is_web_url(value: &str) -> bool {
 fn update_asset_name() -> &'static str {
     if cfg!(target_os = "macos") {
         "Nagi-macOS-universal.dmg"
+    } else if cfg!(target_os = "linux") {
+        "Nagi-Linux-x86_64.tar.gz"
     } else {
         "Nagi-Installer.exe"
     }
@@ -935,7 +978,7 @@ fn save_json<T: Serialize>(path: &Path, value: &T) -> std::io::Result<()> {
 fn downloads_directory() -> PathBuf {
     #[cfg(target_os = "windows")]
     let home = env::var_os("USERPROFILE");
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     let home = env::var_os("HOME");
     home.map(PathBuf::from)
         .unwrap_or_else(env::temp_dir)
@@ -1135,6 +1178,9 @@ fn enable_ad_blocking(view: &WebView, enabled: Arc<AtomicBool>) {
 #[cfg(target_os = "macos")]
 fn enable_ad_blocking(_view: &WebView, _enabled: Arc<AtomicBool>) {}
 
+#[cfg(target_os = "linux")]
+fn enable_ad_blocking(_view: &WebView, _enabled: Arc<AtomicBool>) {}
+
 #[cfg(any(target_os = "windows", test))]
 fn is_ad_host(uri: &str) -> bool {
     let Ok(parsed) = Url::parse(uri) else {
@@ -1171,6 +1217,9 @@ fn enable_password_autosave(view: &WebView) {
 #[cfg(target_os = "macos")]
 fn enable_password_autosave(_view: &WebView) {}
 
+#[cfg(target_os = "linux")]
+fn enable_password_autosave(_view: &WebView) {}
+
 #[cfg(target_os = "windows")]
 fn set_memory_usage_level(view: &WebView, active: bool) {
     let level = if active {
@@ -1182,6 +1231,9 @@ fn set_memory_usage_level(view: &WebView, active: bool) {
 }
 
 #[cfg(target_os = "macos")]
+fn set_memory_usage_level(_view: &WebView, _active: bool) {}
+
+#[cfg(target_os = "linux")]
 fn set_memory_usage_level(_view: &WebView, _active: bool) {}
 
 fn toolbar_bounds(window: &Window, overlay: bool) -> Rect {
@@ -1232,6 +1284,11 @@ fn raise_toolbar(toolbar: &WebView) {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn raise_toolbar(toolbar: &WebView, container: &gtk::Fixed) {
+    let _ = toolbar.reparent(container);
+}
+
 fn reveal_download(path: &Path) {
     #[cfg(target_os = "windows")]
     let mut command = process::Command::new("explorer.exe");
@@ -1239,6 +1296,10 @@ fn reveal_download(path: &Path) {
     let mut command = process::Command::new("open");
     #[cfg(target_os = "macos")]
     command.arg("-R");
+    #[cfg(target_os = "linux")]
+    let mut command = process::Command::new("xdg-open");
+    #[cfg(target_os = "linux")]
+    let path = path.parent().unwrap_or(path);
     let _ = command.arg(path).spawn();
 }
 
@@ -1247,6 +1308,8 @@ fn open_in_file_manager(path: &Path) {
     let mut command = process::Command::new("explorer.exe");
     #[cfg(target_os = "macos")]
     let mut command = process::Command::new("open");
+    #[cfg(target_os = "linux")]
+    let mut command = process::Command::new("xdg-open");
     let _ = command.arg(path).spawn();
 }
 
@@ -1255,6 +1318,8 @@ fn open_external_url(url: &str) {
     let mut command = process::Command::new("explorer.exe");
     #[cfg(target_os = "macos")]
     let mut command = process::Command::new("open");
+    #[cfg(target_os = "linux")]
+    let mut command = process::Command::new("xdg-open");
     let _ = command.arg(url).spawn();
 }
 

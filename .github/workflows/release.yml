@@ -36,7 +36,7 @@ jobs:
           $setup = $setup -replace 'OutputBaseFilename=Nagi-Setup-[^\r\n]+', "OutputBaseFilename=Nagi-Setup-$version"
           Set-Content installer/Nagi.iss $setup -NoNewline
           $bootstrap = Get-Content installer/bootstrap.rs -Raw
-          $bootstrap = $bootstrap -replace '0\.3\.3', $version
+          $bootstrap = $bootstrap -replace '\d+\.\d+\.\d+', $version
           Set-Content installer/bootstrap.rs $bootstrap -NoNewline
       - name: Build Nagi browser
         shell: pwsh
@@ -169,8 +169,76 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  linux-build:
+    name: Build Linux x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install WebKitGTK build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential libwebkit2gtk-4.1-dev libx11-dev libxkbcommon-dev pkg-config
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+      - name: Check release tag and set version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            version="${BASH_REMATCH[1]}"
+          else
+            echo "Use a stable tag such as v0.4.0" >&2
+            exit 1
+          fi
+          python3 - "$version" <<'PY'
+          from pathlib import Path
+          import re, sys
+          path = Path("rust/app/Cargo.toml")
+          text = path.read_text()
+          text, count = re.subn(r'(?m)^version = "[^"]+"', f'version = "{sys.argv[1]}"', text, count=1)
+          if count != 1:
+              raise SystemExit("Could not update Cargo package version")
+          path.write_text(text)
+          PY
+      - name: Build Linux browser
+        env:
+          NAGI_GITHUB_REPOSITORY: ${{ github.repository }}
+        run: cargo build --release --target x86_64-unknown-linux-gnu --manifest-path rust/app/Cargo.toml
+      - name: Package Linux archive
+        run: |
+          mkdir -p dist/Nagi-Linux-x86_64
+          cp rust/app/target/x86_64-unknown-linux-gnu/release/nagi-browser dist/Nagi-Linux-x86_64/nagi-browser
+          cp installer/linux/install.sh dist/Nagi-Linux-x86_64/install.sh
+          cp site/logo.svg dist/Nagi-Linux-x86_64/logo.svg
+          cat > dist/Nagi-Linux-x86_64/README.txt <<'EOF'
+          Nagi for Linux x86_64
+
+          Requirements: Ubuntu 24.04 or a compatible Linux desktop with WebKitGTK 4.1.
+          On Ubuntu, install the WebKitGTK runtime if needed:
+              sudo apt install libwebkit2gtk-4.1-0
+
+          Install for your user by extracting this archive and running:
+              ./install.sh
+
+          The installer adds Nagi to your applications menu. Your profile is stored under:
+              ~/.local/share/NagiBrowser
+          EOF
+          chmod 755 dist/Nagi-Linux-x86_64/nagi-browser dist/Nagi-Linux-x86_64/install.sh
+          tar -czf Nagi-Linux-x86_64.tar.gz -C dist Nagi-Linux-x86_64
+      - name: Upload Linux package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: nagi-linux-x86_64
+          path: Nagi-Linux-x86_64.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
   publish-release:
-    needs: [windows-build, macos-package]
+    needs: [windows-build, linux-build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -180,10 +248,17 @@ jobs:
         with:
           name: nagi-windows-installer
           path: dist
+      - name: Download Linux archive
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: nagi-linux-x86_64
+          path: dist
       - name: Publish GitHub release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           name: Nagi ${{ github.ref_name }}
           generate_release_notes: true
-          files: dist/Nagi-Installer.exe
+          files: |
+            dist/Nagi-Installer.exe
+            dist/Nagi-Linux-x86_64.tar.gz
           token: ${{ secrets.GITHUB_TOKEN }}

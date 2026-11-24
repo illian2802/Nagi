@@ -1,6 +1,6 @@
 # GitHub Releases and the Nagi website
 
-This project does not push code to GitHub or deploy to Vercel. Those remain manual actions by the repository owner. A pushed version tag starts GitHub Actions and publishes that release automatically.
+This project does not push code to GitHub or deploy to Vercel. A pushed version tag starts GitHub Actions and publishes that release automatically.
 
 ## Repository and website
 
@@ -10,28 +10,28 @@ Keep the GitHub repository public so Nagi can check releases without a token emb
 window.NAGI_SITE_CONFIG = { githubRepository: "illian2802/Nagi" };
 ```
 
-Import the repository into Vercel and set `site` as the Root Directory. It is a static site and needs no database or secret environment variables. The download page checks the latest stable GitHub release and picks the Windows installer or macOS disk image based on the visitor's platform.
+Import the repository into Vercel and set `site` as the Root Directory. It is a static site and needs no database or secret environment variables. The page detects Windows, Linux and macOS and only enables a download when the latest stable GitHub release has the matching asset.
 
 ## Build verification
 
-`.github/workflows/check.yml` builds the macOS app on Apple silicon and Intel runners when code is pushed to `main` or a pull request is opened. This check does not publish a release.
+`.github/workflows/check.yml` builds the Linux x86_64 app and macOS Apple silicon and Intel apps on pushes to `main` and pull requests. These checks do not publish releases.
 
-## Create a release
+## Version 0.4.0 release
 
-The existing public release is `v0.3.3`. After adding these changes to the repository, make a new stable version, for example `v0.3.4`, then push the branch and tag:
+The latest public release is `v0.3.3`. After pushing the updated source to `main` and confirming the build checks pass, create and push the `v0.4.0` tag:
 
 ```powershell
-git tag v0.3.4
+git tag v0.4.0
 git push origin main
-git push origin v0.3.4
+git push origin v0.4.0
 ```
 
-The tag starts `.github/workflows/release.yml`. GitHub Actions builds `Nagi-Installer.exe` for Windows and builds/packages the universal macOS app for validation. Until the Mac app is signed and notarized, only the Windows installer is attached to the public GitHub Release.
+The tag starts `.github/workflows/release.yml`. It creates a GitHub Release with `Nagi-Installer.exe` for Windows and `Nagi-Linux-x86_64.tar.gz` for Linux. Linux targets x86_64 and Ubuntu 24.04 or compatible desktops with WebKitGTK 4.1. macOS Apple silicon and Intel binaries are compiled and packaged for validation, but the unsigned Mac app is not attached to public releases.
 
 ## Updates
 
-GitHub builds embed the repository name in Nagi. At startup, Nagi checks the latest stable release and offers the asset for its operating system. The download opens in the default browser; the user runs the Windows installer or copies the Mac app into Applications. Nagi does not install updates silently. Locally built executables without `NAGI_GITHUB_REPOSITORY` cannot check this repository.
+GitHub builds embed the repository name in Nagi. At startup, Nagi checks the latest stable release and offers the matching platform asset: Windows installer or Linux archive. The download opens in the default browser; the user runs the Windows installer or extracts the Linux archive and runs `install.sh`. Nagi does not install updates silently. Locally built executables without `NAGI_GITHUB_REPOSITORY` cannot check this repository.
 
 ## macOS distribution note
 
-The workflow packages an unsigned and unnotarized Mac app for validation but does not attach it to public releases. Before offering it to Mac users, sign the app and DMG with an Apple Developer ID certificate and notarize them with Apple's notary service. GitHub Actions will need the corresponding protected signing credentials. The Apple Developer Program currently costs 99 USD per membership year, with local pricing available in some regions ([membership details](https://developer.apple.com/programs/whats-included)). See also [Apple Developer ID](https://developer.apple.com/developer-id/) and [Apple's notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution/).
+The universal app is not signed or notarized and is omitted from public releases. Before offering it to Mac users, sign the app and disk image with an Apple Developer ID certificate and notarize them with Apple's notary service. This requires membership in the Apple Developer Program and protected signing credentials in GitHub Actions.
