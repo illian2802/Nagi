@@ -105,6 +105,8 @@ kbd{margin-left:auto;padding:3px 5px;border:1px solid #dce4e0;border-radius:4px;
 .download-card-top span{color:var(--muted);font-size:11px}
 .download-large{width:100%;justify-content:space-between}
 .download-card>p{margin:12px 0 0;text-align:center;color:var(--muted);font-size:10px}
+.all-platform-downloads{display:block;margin-top:14px;text-align:center;color:var(--ink);font-size:11px;text-decoration:underline;text-decoration-color:#bdcfca;text-underline-offset:3px;transition:color .16s ease}
+.all-platform-downloads:hover{color:#27715e}
 .footer{border-top:1px solid var(--line)}
 .footer-inner{min-height:76px;display:flex;align-items:center;gap:24px}
 .footer .brand{font-size:16px}
