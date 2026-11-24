@@ -7,7 +7,7 @@ On Windows, sites are rendered by WebView2, the Chromium engine supplied by Micr
 ## Install
 
 - **Windows:** run `Nagi-Installer.exe`. It installs Nagi for your Windows account and offers to install the Microsoft WebView2 runtime if it is missing.
-- **macOS 12 or later:** download `Nagi-macOS-universal.dmg`, open it and drag `Nagi.app` into Applications. The universal app contains native Apple silicon and Intel builds.
+- **macOS 12 or later:** a universal Apple silicon and Intel build is prepared for validation. It will be downloadable from GitHub Releases after it has been signed and notarized.
 
 The macOS build is not signed or notarized yet. macOS may therefore require approval to open it in Privacy & Security. A signed and notarized release requires an Apple Developer signing identity.
 
@@ -37,7 +37,7 @@ cargo run --release -- https://www.wikipedia.org
 
 The Windows profile is stored under `%LOCALAPPDATA%/NagiBrowser`; WebView2 data is in its `WebView2` subfolder. On macOS, the profile is stored in `~/Library/Application Support/NagiBrowser`; WebKit data is in its `WebKit` subfolder.
 
-Each stable version tag builds `Nagi-Installer.exe` for Windows and `Nagi-macOS-universal.dmg` for macOS. The macOS workflow builds native Apple silicon and Intel binaries and combines them into one universal app. See [DEPLOYMENT.md](DEPLOYMENT.md) for GitHub Releases and Vercel setup.
+Each stable version tag publishes `Nagi-Installer.exe` for Windows. The macOS workflow builds native Apple silicon and Intel binaries and packages a universal app for validation, but the disk image is not attached to public releases until it can be signed and notarized. See [DEPLOYMENT.md](DEPLOYMENT.md) for GitHub Releases and Vercel setup.
 
 ## Limitations
 

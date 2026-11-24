@@ -75,6 +75,17 @@
     return response.json();
   }).then(release => {
     const installer = release.assets?.find(asset => asset.name === assetName);
+    if (isMac && !installer) {
+      note.textContent = 'macOS release coming soon';
+      downloadFootnote.textContent = 'The Mac app will be available after signing and notarization';
+      for (const link of [download, lowerDownload]) {
+        link.removeAttribute('href');
+        link.removeAttribute('download');
+        link.setAttribute('aria-disabled', 'true');
+      }
+      for (const label of downloadLabels) label.textContent = 'macOS release coming soon';
+      return;
+    }
     const tag = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(release.tag_name || '');
     let assetUrl;
     try { assetUrl = new URL(installer?.browser_download_url || ''); } catch { assetUrl = null; }
@@ -101,7 +112,7 @@
     }
     note.textContent = 'Latest stable release';
   }).catch(() => {
-    note.textContent = isMac ? 'The macOS installer is not available yet' : 'GitHub release info is temporarily unavailable';
+    note.textContent = 'GitHub release info is temporarily unavailable';
     downloadFootnote.textContent = isMac ? 'Check back after the next macOS release' : 'The current installer is still available';
     if (isMac) {
       for (const link of [download, lowerDownload]) {

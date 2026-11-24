@@ -26,7 +26,7 @@ git push origin main
 git push origin v0.3.4
 ```
 
-The tag starts `.github/workflows/release.yml`. GitHub Actions builds `Nagi-Installer.exe` for Windows and `Nagi-macOS-universal.dmg` for macOS. The macOS app combines native Apple silicon and Intel builds. It then creates a GitHub Release with both files.
+The tag starts `.github/workflows/release.yml`. GitHub Actions builds `Nagi-Installer.exe` for Windows and builds/packages the universal macOS app for validation. Until the Mac app is signed and notarized, only the Windows installer is attached to the public GitHub Release.
 
 ## Updates
 
@@ -34,4 +34,4 @@ GitHub builds embed the repository name in Nagi. At startup, Nagi checks the lat
 
 ## macOS distribution note
 
-The workflow currently packages an unsigned and unnotarized Mac app. It is suitable for build validation and controlled testing, but Gatekeeper may prevent normal opening after download. Before offering it to the public, sign the app and DMG with an Apple Developer ID certificate and notarize them with Apple's notary service. GitHub Actions will need the corresponding protected signing credentials. See [Apple Developer ID](https://developer.apple.com/developer-id/) and [Apple's notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution/).
+The workflow packages an unsigned and unnotarized Mac app for validation but does not attach it to public releases. Before offering it to Mac users, sign the app and DMG with an Apple Developer ID certificate and notarize them with Apple's notary service. GitHub Actions will need the corresponding protected signing credentials. The Apple Developer Program currently costs 99 USD per membership year, with local pricing available in some regions ([membership details](https://developer.apple.com/programs/whats-included)). See also [Apple Developer ID](https://developer.apple.com/developer-id/) and [Apple's notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution/).
