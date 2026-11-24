@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f5f7f4"/>
+  <path d="M0 0h1200v630H0z" fill="#f5f7f4"/>
+  <g font-family="Segoe UI,Arial,sans-serif">
+    <path d="M64 78h1072" stroke="#d9e2df"/>
+    <image href="/logo.svg" x="66" y="38" width="30" height="27"/>
+    <text x="106" y="60" fill="#172d32" font-size="19" font-weight="600">Nagi</text>
+    <text x="68" y="145" fill="#0b554f" font-size="13" font-weight="500">—  FOR WINDOWS 10 AND 11</text>
+    <text x="64" y="238" fill="#172d32" font-size="62" font-weight="500" letter-spacing="-2.8">Your Windows browser,</text>
+    <text x="64" y="307" fill="#147b70" font-size="62" font-weight="500" letter-spacing="-2.8">back to the basics.</text>
+    <text x="68" y="359" fill="#40565a" font-size="18">Tabs, search, bookmarks and downloads—close at hand,</text>
+    <text x="68" y="386" fill="#40565a" font-size="18">with the web at the centre.</text>
+    <rect x="64" y="424" width="194" height="52" rx="9" fill="#0b554f"/>
+    <text x="84" y="456" fill="#fff" font-size="15" font-weight="600">Download Nagi</text>
+    <text x="231" y="456" fill="#fff" font-size="17">↗</text>
+    <text x="68" y="514" fill="#64777a" font-size="13">Free for Windows · No account required</text>
+    <rect x="632" y="106" width="510" height="382" rx="15" fill="#fff" stroke="#cbd7d2"/>
+    <path d="M647 106h480a15 15 0 0 1 15 15v34H632v-34a15 15 0 0 1 15-15z" fill="#eaf0ed"/>
+    <path d="M632 155h510" stroke="#dbe3df"/>
+    <rect x="649" y="124" width="182" height="31" rx="8" fill="#fff" stroke="#dbe3df"/>
+    <image href="/favicon.svg" x="661" y="132" width="15" height="15"/>
+    <text x="684" y="145" fill="#3e5357" font-size="12">New tab</text>
+    <text x="806" y="145" fill="#71817e" font-size="17">×</text>
+    <text x="845" y="146" fill="#526863" font-size="20">+</text>
+    <path d="M632 205h510" stroke="#e2e9e5"/>
+    <text x="651" y="187" fill="#516460" font-size="17">‹</text>
+    <text x="679" y="187" fill="#516460" font-size="17">›</text>
+    <text x="707" y="187" fill="#516460" font-size="15">↻</text>
+    <rect x="736" y="166" width="325" height="29" rx="8" fill="#f7f9f7" stroke="#dce5e1"/>
+    <circle cx="752" cy="180" r="6" fill="none" stroke="#6b7c78" stroke-width="1.4"/>
+    <path d="m756.5 184.5 4 4" stroke="#6b7c78" stroke-width="1.4"/>
+    <text x="770" y="184" fill="#6b7c78" font-size="11">Search or enter an address</text>
+    <path d="m1084 171 11 0v16l-5.5-3.6L1084 187z" fill="none" stroke="#147b70" stroke-width="1.4"/>
+    <path d="M632 207h510v281H632z" fill="#fff"/>
+    <image href="/logo.svg" x="866" y="251" width="43" height="39"/>
+    <text x="887" y="314" text-anchor="middle" fill="#72837d" font-size="10" letter-spacing="1.2">A FRESH PAGE</text>
+    <text x="887" y="352" text-anchor="middle" fill="#172d32" font-size="27" font-weight="500">Where to next?</text>
+    <rect x="727" y="371" width="320" height="44" rx="9" fill="#fbfcfb" stroke="#dce5e1"/>
+    <circle cx="746" cy="390" r="6" fill="none" stroke="#73827d" stroke-width="1.4"/>
+    <path d="m750 394 4 4" stroke="#73827d" stroke-width="1.4"/>
+    <text x="765" y="394" fill="#73827d" font-size="11">Search the web or enter a URL</text>
+    <rect x="1022" y="380" width="17" height="22" rx="4" fill="#fff" stroke="#dce4e0"/>
+    <text x="1027" y="395" fill="#788984" font-size="10">↵</text>
+    <g fill="#647571" font-size="10" text-anchor="middle">
+      <rect x="776" y="437" width="32" height="32" rx="10" fill="#fff" stroke="#dfe7e3"/><text x="792" y="458" fill="#355c59" font-family="Georgia" font-size="16">W</text><text x="792" y="482" fill="#647571" font-size="10">Wikipedia</text>
+      <rect x="872" y="437" width="32" height="32" rx="10" fill="#fff" stroke="#dfe7e3"/><text x="888" y="458" fill="#397d6d" font-size="13" font-weight="600">G</text><text x="888" y="482" fill="#647571" font-size="10">GitHub</text>
+      <rect x="968" y="437" width="32" height="32" rx="10" fill="#fff" stroke="#dfe7e3"/><text x="984" y="459" fill="#647b75" font-size="17">+</text><text x="984" y="482" fill="#647571" font-size="10">Add shortcut</text>
+    </g>
+  </g>
+</svg>

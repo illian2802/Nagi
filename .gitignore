@@ -13,6 +13,7 @@
 /.venv/
 /.tools/
 /.brand/refs/
+/site/downloads/*.exe
 /.brand/fonts/cache/
 /.brand/fonts/cache-curated/
 /.brand/fonts/build/

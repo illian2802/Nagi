@@ -97,6 +97,15 @@
   }
   const releases = `https://github.com/${repository}/releases`;
   source.href = releases;
+  const useReleasePageFallback = () => {
+    for (const link of [download, lowerDownload]) {
+      link.href = `${releases}/latest`;
+      link.removeAttribute('download');
+      link.removeAttribute('aria-disabled');
+    }
+    for (const label of downloadLabels) label.textContent = 'View GitHub releases';
+    downloadFootnote.textContent = 'Choose the download for your device on GitHub';
+  };
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
@@ -153,17 +162,7 @@
     note.textContent = 'Latest stable release';
   }).catch(() => {
     note.textContent = 'GitHub release info is temporarily unavailable';
-    downloadFootnote.textContent = (isMac || isLinux)
-      ? `Check back after the next ${isMac ? 'macOS' : 'Linux'} release`
-      : 'The current installer is still available';
-    if (isMac || isLinux) {
-      for (const link of [download, lowerDownload]) {
-        link.href = releases;
-        link.removeAttribute('download');
-        link.removeAttribute('aria-disabled');
-      }
-      for (const label of downloadLabels) label.textContent = 'View GitHub releases';
-    }
+    useReleasePageFallback();
   }).finally(() => {
     clearTimeout(timeout);
   });
