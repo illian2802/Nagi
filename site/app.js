@@ -46,6 +46,7 @@
     document.getElementById('filter-description').textContent = 'Choose a search engine, turn on dark mode, and browse in 14 interface languages. Domain filtering is available in the Windows release.';
     document.getElementById('privacy-platform-copy').textContent = 'Bookmarks, history, downloads and preferences stay in your macOS application support profile. WebKit handles website authentication using macOS system services.';
     document.getElementById('password-description').textContent = 'Save bookmarks, revisit history and manage downloads. Website password saving and autofill depend on macOS and WebKit settings.';
+    document.getElementById('vpn-description').textContent = 'Open the Proton VPN app from Nagi, then choose your server region in Proton.';
     document.getElementById('profile-fact').textContent = 'Saved in your Mac user profile';
     document.getElementById('visual-platform').textContent = 'Nagi for macOS';
     document.getElementById('download-platform-label').textContent = 'Ready for your Mac';
@@ -71,6 +72,7 @@
     document.getElementById('filter-description').textContent = 'Choose a search engine, turn on dark mode, and browse in 14 interface languages. The current ad filter is available in the Windows release.';
     document.getElementById('privacy-platform-copy').textContent = 'Bookmarks, history, downloads and preferences stay in your Linux user profile. WebKitGTK handles website data on this device.';
     document.getElementById('password-description').textContent = 'Save bookmarks, revisit history and manage downloads. Linux WebKitGTK does not currently provide Nagi with a built-in password manager.';
+    document.getElementById('vpn-description').textContent = 'Connect or disconnect Proton VPN from Nagi and choose a country. The official Proton CLI routes traffic for the whole Linux device.';
     document.getElementById('profile-fact').textContent = 'Saved in your Linux user profile';
     document.getElementById('visual-platform').textContent = 'Nagi for Linux';
     document.getElementById('download-platform-label').textContent = 'For Linux x86_64';

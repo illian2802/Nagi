@@ -49,7 +49,7 @@
     .tool-button { color: #697987; }
     .shield-button { width: auto; padding: 0 10px; display: flex; gap: 7px; font-size: 12px; color: #4f6170; }
     .shield-button svg { width: 16px; height: 16px; color: #328e7e; }
-    .popover { position: absolute; z-index: 1000; top: 99px; right: 14px; width: min(360px, calc(100vw - 28px)); padding: 8px; border: 1px solid #e0e5ea; border-radius: 12px; background: #fff; box-shadow: 0 12px 32px #17212e1c; transform-origin: top right; animation: panel-in 170ms cubic-bezier(.2,.75,.25,1) both; }
+    .popover { position: absolute; z-index: 1000; top: 99px; right: 14px; width: min(360px, calc(100vw - 28px)); max-height: calc(100% - 110px); overflow-y: auto; padding: 8px; border: 1px solid #e0e5ea; border-radius: 12px; background: #fff; box-shadow: 0 12px 32px #17212e1c; transform-origin: top right; animation: panel-in 170ms cubic-bezier(.2,.75,.25,1) both; }
     .popover[hidden] { display: none; }
     @keyframes panel-in { from { opacity: 0; transform: translateY(-7px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
     .popover-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 9px 10px; }
@@ -78,6 +78,14 @@
     .setting-row select { width: 100%; padding: 8px 10px; border: 1px solid #dce2e8; border-radius: 7px; background: #fff; color: #17212e; font: inherit; }
     .setting-check { display: flex; align-items: center; gap: 9px; color: #455461; font-size: 12px; }
     .setting-check input { width: 15px; height: 15px; margin: 0; accent-color: #278a79; }
+    .vpn-panel { display: grid; gap: 7px; padding: 10px; border: 1px solid #dce2e8; border-radius: 8px; background: #f8fafb; }
+    .vpn-panel strong { color: #263541; font-size: 12px; font-weight: 600; }
+    .vpn-status { color: #667581; font-size: 11px; line-height: 1.4; }
+    .vpn-actions { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
+    .vpn-panel[hidden], .vpn-country-row[hidden], .vpn-help[hidden] { display: none; }
+    :root[data-theme="dark"] .vpn-panel { background: #1c2933; border-color: #3a4a55; }
+    :root[data-theme="dark"] .vpn-panel strong { color: #e0e9ee; }
+    :root[data-theme="dark"] .vpn-status { color: #a1afb8; }
     .settings-panel[hidden], .bookmark-list[hidden] { display: none; }
     :root[data-theme="dark"] { color-scheme: dark; color: #dce6ec; }
     :root[data-theme="dark"] body { background: #111a22; }
@@ -166,6 +174,17 @@
       <label class="setting-row"><span data-i18n="language">Langue de l’interface</span>
         <select id="language-select"></select>
       </label>
+      <section class="vpn-panel" id="vpn-panel" aria-labelledby="vpn-title">
+        <strong id="vpn-title">Proton VPN</strong>
+        <label class="setting-row vpn-country-row" id="vpn-country-row"><span id="vpn-region-label">Server region</span>
+          <select id="vpn-country">
+            <option value="fastest">Fastest available</option>
+            <option value="AU">Australia</option><option value="AT">Austria</option><option value="BE">Belgium</option><option value="BR">Brazil</option><option value="BG">Bulgaria</option><option value="CA">Canada</option><option value="CZ">Czechia</option><option value="DK">Denmark</option><option value="FI">Finland</option><option value="FR">France</option><option value="DE">Germany</option><option value="GR">Greece</option><option value="HK">Hong Kong</option><option value="HU">Hungary</option><option value="IS">Iceland</option><option value="IE">Ireland</option><option value="IL">Israel</option><option value="IT">Italy</option><option value="JP">Japan</option><option value="LV">Latvia</option><option value="LT">Lithuania</option><option value="LU">Luxembourg</option><option value="MY">Malaysia</option><option value="MX">Mexico</option><option value="NL">Netherlands</option><option value="NZ">New Zealand</option><option value="NO">Norway</option><option value="PL">Poland</option><option value="PT">Portugal</option><option value="RO">Romania</option><option value="RS">Serbia</option><option value="SG">Singapore</option><option value="SK">Slovakia</option><option value="SI">Slovenia</option><option value="ZA">South Africa</option><option value="KR">South Korea</option><option value="ES">Spain</option><option value="SE">Sweden</option><option value="CH">Switzerland</option><option value="TW">Taiwan</option><option value="TR">Türkiye</option><option value="UA">Ukraine</option><option value="GB">United Kingdom</option><option value="US">United States</option>
+          </select>
+        </label>
+        <div class="vpn-actions"><button class="folder-button" id="vpn-toggle" type="button">Connect</button><button class="folder-button vpn-help" id="vpn-help" type="button">Setup guide</button></div>
+        <span class="vpn-status" id="vpn-status" aria-live="polite">Checking Proton VPN…</span>
+      </section>
       <div class="setting-row update-row">
         <span data-i18n="updates">Updates</span>
         <button class="folder-button" id="check-updates" type="button" data-i18n="checkUpdates">Check for updates</button>
@@ -198,6 +217,40 @@
     let updateCurrentVersion = '';
     let updateAssetName = 'Nagi-Installer.exe';
     let adBlockingAvailable = true;
+    let vpnPlatform = 'external';
+    let vpnConnected = false;
+
+    const vpnStrings = {
+      en: { region:'Server region', fastest:'Fastest available', connect:'Connect VPN', disconnect:'Disconnect VPN', open:'Open Proton VPN', help:'Setup guide', checking:'Checking Proton VPN…', connected:'VPN connected for this whole device.', disconnected:'VPN disconnected.', connecting:'Connecting…', disconnecting:'Disconnecting…', missing:'Install and sign in to Proton VPN CLI. Close the Proton VPN desktop app first.', error:'Could not connect. Check Proton VPN sign-in, region, or whether its desktop app is open.', external:'Manage connection and region in the Proton VPN app.' },
+      fr: { region:'Pays ou région', fastest:'Le plus rapide', connect:'Connecter le VPN', disconnect:'Déconnecter le VPN', open:'Ouvrir Proton VPN', help:'Guide de configuration', checking:'Vérification de Proton VPN…', connected:'VPN connecté pour tout cet appareil.', disconnected:'VPN déconnecté.', connecting:'Connexion…', disconnecting:'Déconnexion…', missing:'Installe et connecte le CLI Proton VPN. Ferme d’abord son application graphique.', error:'Connexion impossible. Vérifie ton compte, la région et que l’application Proton est fermée.', external:'Gère la connexion et la région dans l’application Proton VPN.' },
+      es: { region:'País o región', fastest:'Más rápido disponible', connect:'Conectar VPN', disconnect:'Desconectar VPN', open:'Abrir Proton VPN', help:'Guía de instalación', checking:'Comprobando Proton VPN…', connected:'VPN conectada para todo el dispositivo.', disconnected:'VPN desconectada.', connecting:'Conectando…', disconnecting:'Desconectando…', missing:'Instala e inicia sesión en Proton VPN CLI. Cierra primero la aplicación gráfica.', error:'No se pudo conectar. Comprueba la cuenta, la región y que la aplicación esté cerrada.', external:'Administra la conexión y la región en la aplicación Proton VPN.' },
+      de: { region:'Land oder Region', fastest:'Schnellster verfügbarer', connect:'VPN verbinden', disconnect:'VPN trennen', open:'Proton VPN öffnen', help:'Einrichtungsanleitung', checking:'Proton VPN wird geprüft…', connected:'VPN ist für das gesamte Gerät verbunden.', disconnected:'VPN getrennt.', connecting:'Verbindung wird hergestellt…', disconnecting:'Verbindung wird getrennt…', missing:'Proton VPN CLI installieren und anmelden. Zuerst die Proton VPN Desktop-App schließen.', error:'Verbindung fehlgeschlagen. Konto, Region und Proton-App prüfen.', external:'Verbindung und Region in der Proton VPN App verwalten.' },
+      it: { region:'Paese o area', fastest:'Più veloce disponibile', connect:'Connetti VPN', disconnect:'Disconnetti VPN', open:'Apri Proton VPN', help:'Guida alla configurazione', checking:'Controllo di Proton VPN…', connected:'VPN connessa per tutto il dispositivo.', disconnected:'VPN disconnessa.', connecting:'Connessione…', disconnecting:'Disconnessione…', missing:'Installa e accedi a Proton VPN CLI. Chiudi prima l’app desktop Proton VPN.', error:'Connessione non riuscita. Controlla account, area e app Proton.', external:'Gestisci connessione e area nell’app Proton VPN.' },
+      'pt-BR': { region:'País ou região', fastest:'Mais rápido disponível', connect:'Conectar VPN', disconnect:'Desconectar VPN', open:'Abrir Proton VPN', help:'Guia de configuração', checking:'Verificando Proton VPN…', connected:'VPN conectada para todo o dispositivo.', disconnected:'VPN desconectada.', connecting:'Conectando…', disconnecting:'Desconectando…', missing:'Instale e entre no Proton VPN CLI. Feche primeiro o aplicativo Proton VPN.', error:'Não foi possível conectar. Confira a conta, a região e o app Proton.', external:'Gerencie a conexão e a região no aplicativo Proton VPN.' },
+      nl: { region:'Land of regio', fastest:'Snelste beschikbaar', connect:'VPN verbinden', disconnect:'VPN verbreken', open:'Proton VPN openen', help:'Installatiehandleiding', checking:'Proton VPN controleren…', connected:'VPN verbonden voor dit hele apparaat.', disconnected:'VPN verbroken.', connecting:'Verbinden…', disconnecting:'Verbinding verbreken…', missing:'Installeer en meld je aan bij Proton VPN CLI. Sluit eerst de Proton VPN desktop-app.', error:'Verbinden is mislukt. Controleer account, regio en Proton-app.', external:'Beheer verbinding en regio in de Proton VPN-app.' },
+      pl: { region:'Kraj lub region', fastest:'Najszybszy dostępny', connect:'Połącz VPN', disconnect:'Rozłącz VPN', open:'Otwórz Proton VPN', help:'Instrukcja konfiguracji', checking:'Sprawdzanie Proton VPN…', connected:'VPN połączony dla całego urządzenia.', disconnected:'VPN rozłączony.', connecting:'Łączenie…', disconnecting:'Rozłączanie…', missing:'Zainstaluj Proton VPN CLI i zaloguj się. Najpierw zamknij aplikację Proton VPN.', error:'Nie udało się połączyć. Sprawdź konto, region i aplikację Proton.', external:'Zarządzaj połączeniem i regionem w aplikacji Proton VPN.' },
+      tr: { region:'Ülke veya bölge', fastest:'En hızlı kullanılabilir', connect:'VPN’e bağlan', disconnect:'VPN bağlantısını kes', open:'Proton VPN’i aç', help:'Kurulum kılavuzu', checking:'Proton VPN denetleniyor…', connected:'VPN tüm cihaz için bağlı.', disconnected:'VPN bağlantısı kesildi.', connecting:'Bağlanıyor…', disconnecting:'Bağlantı kesiliyor…', missing:'Proton VPN CLI’yi yükleyip oturum aç. Önce Proton VPN masaüstü uygulamasını kapat.', error:'Bağlantı kurulamadı. Hesabı, bölgeyi ve Proton uygulamasını denetle.', external:'Bağlantıyı ve bölgeyi Proton VPN uygulamasında yönet.' },
+      ru: { region:'Страна или регион', fastest:'Самый быстрый доступный', connect:'Подключить VPN', disconnect:'Отключить VPN', open:'Открыть Proton VPN', help:'Инструкция по настройке', checking:'Проверка Proton VPN…', connected:'VPN подключён для всего устройства.', disconnected:'VPN отключён.', connecting:'Подключение…', disconnecting:'Отключение…', missing:'Установите Proton VPN CLI и войдите. Сначала закройте приложение Proton VPN.', error:'Не удалось подключиться. Проверьте аккаунт, регион и приложение Proton.', external:'Управляйте подключением и регионом в приложении Proton VPN.' },
+      ja: { region:'国または地域', fastest:'最速のサーバー', connect:'VPN に接続', disconnect:'VPN を切断', open:'Proton VPN を開く', help:'設定ガイド', checking:'Proton VPN を確認中…', connected:'デバイス全体で VPN に接続しています。', disconnected:'VPN は切断されています。', connecting:'接続中…', disconnecting:'切断中…', missing:'Proton VPN CLI をインストールしてログインしてください。先に Proton VPN アプリを終了してください。', error:'接続できません。アカウント、地域、Proton アプリを確認してください。', external:'接続と地域は Proton VPN アプリで管理します。' },
+      'zh-CN': { region:'国家或地区', fastest:'最快的可用服务器', connect:'连接 VPN', disconnect:'断开 VPN', open:'打开 Proton VPN', help:'设置指南', checking:'正在检查 Proton VPN…', connected:'VPN 已为整个设备连接。', disconnected:'VPN 已断开。', connecting:'正在连接…', disconnecting:'正在断开…', missing:'请安装并登录 Proton VPN CLI。请先关闭 Proton VPN 桌面应用。', error:'连接失败。请检查账户、地区及 Proton 应用状态。', external:'在 Proton VPN 应用中管理连接和地区。' },
+      'zh-TW': { region:'國家或地區', fastest:'最快的可用伺服器', connect:'連線 VPN', disconnect:'中斷 VPN', open:'開啟 Proton VPN', help:'設定指南', checking:'正在檢查 Proton VPN…', connected:'VPN 已為整部裝置連線。', disconnected:'VPN 已中斷。', connecting:'正在連線…', disconnecting:'正在中斷…', missing:'請安裝並登入 Proton VPN CLI。請先關閉 Proton VPN 桌面應用程式。', error:'連線失敗。請檢查帳戶、地區和 Proton 應用程式狀態。', external:'在 Proton VPN 應用程式中管理連線和地區。' },
+      ar: { region:'البلد أو المنطقة', fastest:'الأسرع المتاح', connect:'اتصال بـ VPN', disconnect:'قطع اتصال VPN', open:'فتح Proton VPN', help:'دليل الإعداد', checking:'جارٍ التحقق من Proton VPN…', connected:'VPN متصل لكامل الجهاز.', disconnected:'VPN غير متصل.', connecting:'جارٍ الاتصال…', disconnecting:'جارٍ قطع الاتصال…', missing:'ثبّت Proton VPN CLI وسجّل الدخول. أغلق تطبيق Proton VPN أولاً.', error:'تعذّر الاتصال. تحقق من الحساب والمنطقة وتطبيق Proton.', external:'أدر الاتصال والمنطقة في تطبيق Proton VPN.' }
+    };
+
+    function renderVpn(settings) {
+      const copy = vpnStrings[language] || vpnStrings.en;
+      vpnPlatform = settings.vpn_platform || 'external';
+      vpnConnected = settings.vpn_connected === true;
+      const linuxControl = vpnPlatform === 'linux';
+      document.getElementById('vpn-region-label').textContent = copy.region;
+      document.querySelector('#vpn-country option[value="fastest"]').textContent = copy.fastest;
+      document.getElementById('vpn-country-row').hidden = !linuxControl;
+      document.getElementById('vpn-help').hidden = !linuxControl;
+      document.getElementById('vpn-toggle').textContent = linuxControl ? (vpnConnected ? copy.disconnect : copy.connect) : copy.open;
+      document.getElementById('vpn-toggle').disabled = linuxControl && settings.vpn_busy === true;
+      document.getElementById('vpn-country').value = settings.vpn_country || 'fastest';
+      document.getElementById('vpn-status').textContent = copy[settings.vpn_status] || copy.error;
+    }
 
     function parseStableVersion(value) {
       const match = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(value || '');
@@ -327,6 +380,7 @@
       adBlockingRow.hidden = !adBlockingAvailable;
       document.getElementById('ad-blocking').checked = settings.ad_blocking === true;
       document.getElementById('restore-last-page').checked = settings.restore_last_page !== false;
+      renderVpn(settings);
       checkForUpdates(settings.update_repository || '', settings.version || '', settings.update_asset || 'Nagi-Installer.exe');
       const progress = document.getElementById('loading-track');
       if (loading) { progress.classList.remove('done'); progress.classList.add('loading'); }
@@ -390,6 +444,12 @@
     document.getElementById('ad-blocking').addEventListener('change', event => send('set-preference', { preference: 'ad_blocking', value: event.target.checked ? 'on' : 'off' }));
     document.getElementById('restore-last-page').addEventListener('change', event => send('set-preference', { preference: 'restore_last_page', value: event.target.checked ? 'on' : 'off' }));
     languageSelect.addEventListener('change', event => send('set-preference', { preference: 'language', value: event.target.value }));
+    document.getElementById('vpn-country').addEventListener('change', event => send('set-preference', { preference: 'vpn_country', value: event.target.value }));
+    document.getElementById('vpn-toggle').addEventListener('click', () => {
+      if (vpnPlatform !== 'linux') send('open-proton-app');
+      else send(vpnConnected ? 'vpn-disconnect' : 'vpn-connect', { country: document.getElementById('vpn-country').value });
+    });
+    document.getElementById('vpn-help').addEventListener('click', () => send('open-proton-help'));
     document.getElementById('clear-history').addEventListener('click', () => send('clear-history'));
     updateButton.addEventListener('click', () => {
       if (updateButton.dataset.url) send('open-update', { url: updateButton.dataset.url });

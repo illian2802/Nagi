@@ -16,14 +16,14 @@ Import the repository into Vercel and set `site` as the Root Directory. It is a 
 
 `.github/workflows/check.yml` builds the Linux x86_64 app and macOS Apple silicon and Intel apps on pushes to `main` and pull requests. These checks do not publish releases.
 
-## Version 0.4.0 release
+## Version 0.5.0 release
 
-The latest public release is `v0.3.3`. After pushing the updated source to `main` and confirming the build checks pass, create and push the `v0.4.0` tag:
+The latest public release is `v0.4.0`. After pushing the updated source to `main` and confirming the build checks pass, create and push the `v0.5.0` tag:
 
 ```powershell
-git tag v0.4.0
+git tag v0.5.0
 git push origin main
-git push origin v0.4.0
+git push origin v0.5.0
 ```
 
 The tag starts `.github/workflows/release.yml`. It creates a GitHub Release with `Nagi-Installer.exe` for Windows and `Nagi-Linux-x86_64.tar.gz` for Linux. Linux targets x86_64 and Ubuntu 24.04 or compatible desktops with WebKitGTK 4.1. macOS Apple silicon and Intel binaries are compiled and packaged for validation, but the unsigned Mac app is not attached to public releases.

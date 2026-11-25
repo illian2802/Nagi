@@ -1,4 +1,4 @@
-# Nagi 0.4.0 — a lightweight desktop browser
+# Nagi 0.5.0 — a lightweight desktop browser
 
 Nagi is built with Rust and Wry. It has tabs, search, bookmarks, history, downloads and a new-tab page.
 
@@ -24,6 +24,8 @@ sudo apt install libwebkit2gtk-4.1-0
 
 Other distributions need WebKitGTK 4.1 and GTK 3. This archive is for x86_64 Linux, not ARM devices.
 
+For the Proton VPN controls in Nagi, install the official Proton VPN Linux CLI and sign in first. Open **Settings → Proton VPN**, choose a country, then select **Connect VPN**. The CLI manages the device-wide VPN and cannot run alongside Proton's Linux desktop app. Country availability depends on your Proton plan. See [Proton's Linux CLI guide](https://protonvpn.com/support/use-linux-cli).
+
 ### macOS
 
 A universal Apple silicon and Intel build is prepared for validation. It will be downloadable after the app is signed and notarized.
@@ -38,6 +40,9 @@ A universal Apple silicon and Intel build is prepared for validation. It will be
 - Reopen recently closed tabs with `Ctrl+Shift+T` on Windows/Linux or `⌘+Shift+T` on macOS
 - Basic filtering of known advertising and tracking domains on Windows
 - WebView2 password-save prompts on Windows; Nagi does not currently provide a separate password manager on macOS or Linux
+- Proton VPN controls: on Linux, connect or disconnect with the official Proton VPN CLI and select a country; on Windows and macOS, open the official Proton VPN app. Linux VPN connections route traffic for the whole device and require the Proton CLI to be installed and signed in.
+
+On Windows and macOS, the Proton VPN control opens Proton's official app; connection state and region are managed there. Nagi does not collect or store Proton credentials.
 
 The Windows installer offers 14 languages: English, French, Spanish, German, Italian, Brazilian Portuguese, Dutch, Polish, Turkish, Russian, Japanese, Simplified Chinese, Traditional Chinese and Arabic. English is selected by default. Change it during setup or later in Settings. Arabic uses a right-to-left interface.
 

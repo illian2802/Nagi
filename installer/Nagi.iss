@@ -1,5 +1,5 @@
 #define MyAppName "Nagi"
-#define MyAppVersion "0.4.0"
+#define MyAppVersion "0.5.0"
 #define MyAppPublisher "Nagi"
 #define MyAppExeName "nagi-browser.exe"
 
@@ -15,7 +15,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 OutputDir=..
-OutputBaseFilename=Nagi-Setup-0.4.0
+OutputBaseFilename=Nagi-Setup-0.5.0
 SetupIconFile=assets\nagi.ico
 UninstallDisplayIcon={app}\nagi.ico
 WizardStyle=modern

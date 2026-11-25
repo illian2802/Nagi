@@ -10,6 +10,11 @@ use std::{
     },
     time::{SystemTime, UNIX_EPOCH},
 };
+#[cfg(target_os = "linux")]
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -58,12 +63,25 @@ const AD_HOSTS: &[&str] = &[
 #[derive(Debug)]
 enum AppEvent {
     ToolbarMessage(String),
-    HomeMessage { tab_id: u64, message: String },
-    PageChanged { tab_id: u64, url: String },
-    PageLoading { tab_id: u64, loading: bool },
+    HomeMessage {
+        tab_id: u64,
+        message: String,
+    },
+    PageChanged {
+        tab_id: u64,
+        url: String,
+    },
+    PageLoading {
+        tab_id: u64,
+        loading: bool,
+    },
     DownloadChanged(DownloadItem),
     NewWindow(String),
     ToolbarReady,
+    VpnFinished {
+        connected: Option<bool>,
+        status: String,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -75,6 +93,7 @@ struct ToolbarCommand {
     open: Option<bool>,
     preference: Option<String>,
     value: Option<String>,
+    country: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,6 +104,7 @@ struct Preferences {
     search_engine: String,
     restore_last_page: bool,
     language: String,
+    vpn_country: String,
 }
 
 impl Default for Preferences {
@@ -95,6 +115,7 @@ impl Default for Preferences {
             search_engine: "google".into(),
             restore_last_page: true,
             language: "en".into(),
+            vpn_country: "fastest".into(),
         }
     }
 }
@@ -160,6 +181,9 @@ struct Browser {
     ad_blocking_enabled: Arc<AtomicBool>,
     last_page_file: PathBuf,
     recently_closed: Vec<String>,
+    vpn_connected: bool,
+    vpn_busy: bool,
+    vpn_status: String,
 }
 
 impl Browser {
@@ -246,6 +270,14 @@ impl Browser {
             ad_blocking_enabled,
             last_page_file,
             recently_closed: Vec::new(),
+            vpn_connected: false,
+            vpn_busy: cfg!(target_os = "linux"),
+            vpn_status: if cfg!(target_os = "linux") {
+                "checking"
+            } else {
+                "external"
+            }
+            .into(),
         };
         if initial_inputs.is_empty() {
             let last_page = if browser.preferences.restore_last_page {
@@ -259,6 +291,8 @@ impl Browser {
                 browser.create_tab(resolve_input(&input, &browser.preferences.search_engine))?;
             }
         }
+        #[cfg(target_os = "linux")]
+        browser.check_proton_vpn_status();
         Ok(browser)
     }
 
@@ -479,6 +513,14 @@ impl Browser {
                 }
             }
             AppEvent::ToolbarReady => self.sync_toolbar(),
+            AppEvent::VpnFinished { connected, status } => {
+                self.vpn_busy = false;
+                if let Some(connected) = connected {
+                    self.vpn_connected = connected;
+                }
+                self.vpn_status = status;
+                self.sync_toolbar();
+            }
         }
     }
 
@@ -555,6 +597,22 @@ impl Browser {
                 {
                     open_external_url(url);
                 }
+            }
+            "vpn-connect" => {
+                #[cfg(target_os = "linux")]
+                self.set_proton_vpn(true, command.country.as_deref().unwrap_or("fastest"));
+            }
+            "vpn-disconnect" => {
+                #[cfg(target_os = "linux")]
+                self.set_proton_vpn(false, "fastest");
+            }
+            "open-proton-app" => {
+                #[cfg(any(target_os = "windows", target_os = "macos"))]
+                open_proton_vpn_app();
+            }
+            "open-proton-help" => {
+                #[cfg(target_os = "linux")]
+                open_external_url("https://protonvpn.com/support/linux-vpn-setup");
             }
             "popover-state" => self.set_popover_open(command.open.unwrap_or(false)),
             "set-preference" => {
@@ -695,6 +753,11 @@ impl Browser {
                 "search_engine": self.preferences.search_engine
                 ,"restore_last_page": self.preferences.restore_last_page,
                 "language": self.preferences.language
+                ,"vpn_country": self.preferences.vpn_country
+                ,"vpn_platform": if cfg!(target_os = "linux") { "linux" } else { "external" }
+                ,"vpn_connected": self.vpn_connected
+                ,"vpn_busy": self.vpn_busy
+                ,"vpn_status": self.vpn_status
                 ,"version": env!("CARGO_PKG_VERSION")
                 ,"update_repository": option_env!("NAGI_GITHUB_REPOSITORY").unwrap_or("")
                 ,"update_asset": update_asset_name()
@@ -745,6 +808,62 @@ impl Browser {
         self.sync_toolbar();
     }
 
+    #[cfg(target_os = "linux")]
+    fn check_proton_vpn_status(&mut self) {
+        let proxy = self.proxy.clone();
+        thread::spawn(move || {
+            let (connected, status) = query_proton_vpn_status();
+            let _ = proxy.send_event(AppEvent::VpnFinished { connected, status });
+        });
+    }
+
+    #[cfg(target_os = "linux")]
+    fn set_proton_vpn(&mut self, connect: bool, country: &str) {
+        if self.vpn_busy {
+            return;
+        }
+        if connect && !is_supported_proton_country(country) {
+            self.vpn_status = "error".into();
+            self.sync_toolbar();
+            return;
+        }
+        self.vpn_busy = true;
+        self.vpn_status = if connect {
+            "connecting"
+        } else {
+            "disconnecting"
+        }
+        .into();
+        self.sync_toolbar();
+
+        let proxy = self.proxy.clone();
+        let country = country.to_owned();
+        thread::spawn(move || {
+            let result = run_proton_vpn_command(connect, &country);
+            let (connected, status) = match result {
+                Ok(()) => (
+                    Some(connect),
+                    if connect { "connected" } else { "disconnected" },
+                ),
+                Err(status) => {
+                    let (connected, observed) = query_proton_vpn_status();
+                    (
+                        connected,
+                        if observed == "missing" {
+                            "missing"
+                        } else {
+                            status
+                        },
+                    )
+                }
+            };
+            let _ = proxy.send_event(AppEvent::VpnFinished {
+                connected,
+                status: status.into(),
+            });
+        });
+    }
+
     fn set_preference(&mut self, key: &str, value: &str) {
         match key {
             "theme" => self.preferences.dark_mode = value == "dark",
@@ -758,6 +877,9 @@ impl Browser {
             }
             "restore_last_page" => self.preferences.restore_last_page = value == "on",
             "language" => self.preferences.language = normalize_language(value).to_owned(),
+            "vpn_country" if is_supported_proton_country(value) => {
+                self.preferences.vpn_country = value.to_owned();
+            }
             _ => return,
         }
         let _ = save_json(&self.preferences_file, &self.preferences);
@@ -902,6 +1024,121 @@ fn is_web_url(value: &str) -> bool {
     Url::parse(value)
         .ok()
         .is_some_and(|url| matches!(url.scheme(), "http" | "https") && url.host_str().is_some())
+}
+
+fn is_supported_proton_country(value: &str) -> bool {
+    matches!(
+        value,
+        "fastest"
+            | "AU"
+            | "AT"
+            | "BE"
+            | "BR"
+            | "BG"
+            | "CA"
+            | "CZ"
+            | "DK"
+            | "FI"
+            | "FR"
+            | "DE"
+            | "GR"
+            | "HK"
+            | "HU"
+            | "IS"
+            | "IE"
+            | "IL"
+            | "IT"
+            | "JP"
+            | "LV"
+            | "LT"
+            | "LU"
+            | "MY"
+            | "MX"
+            | "NL"
+            | "NZ"
+            | "NO"
+            | "PL"
+            | "PT"
+            | "RO"
+            | "RS"
+            | "SG"
+            | "SK"
+            | "SI"
+            | "ZA"
+            | "KR"
+            | "ES"
+            | "SE"
+            | "CH"
+            | "TW"
+            | "TR"
+            | "UA"
+            | "GB"
+            | "US"
+    )
+}
+
+#[cfg(target_os = "linux")]
+fn query_proton_vpn_status() -> (Option<bool>, String) {
+    let output = match process::Command::new("protonvpn").arg("status").output() {
+        Ok(output) => output,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return (None, "missing".into());
+        }
+        Err(_) => return (None, "error".into()),
+    };
+    let text = format!(
+        "{} {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    )
+    .to_lowercase();
+    if text.contains("not connected") || text.contains("disconnected") {
+        (Some(false), "disconnected".into())
+    } else if output.status.success() && text.contains("connected") {
+        (Some(true), "connected".into())
+    } else {
+        (None, "error".into())
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn run_proton_vpn_command(connect: bool, country: &str) -> Result<(), &'static str> {
+    use std::process::Stdio;
+
+    let mut command = process::Command::new("protonvpn");
+    if connect {
+        command.arg("connect");
+        if country != "fastest" {
+            command.args(["--country", country]);
+        }
+    } else {
+        command.arg("disconnect");
+    }
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                "missing"
+            } else {
+                "error"
+            }
+        })?;
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) if status.success() => return Ok(()),
+            Ok(Some(_)) | Err(_) => return Err("error"),
+            Ok(None) if started.elapsed() >= Duration::from_secs(180) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err("error");
+            }
+            Ok(None) => thread::sleep(Duration::from_millis(250)),
+        }
+    }
 }
 
 fn update_asset_name() -> &'static str {
@@ -1321,6 +1558,56 @@ fn open_external_url(url: &str) {
     #[cfg(target_os = "linux")]
     let mut command = process::Command::new("xdg-open");
     let _ = command.arg(url).spawn();
+}
+
+#[cfg(target_os = "windows")]
+fn open_proton_vpn_app() {
+    let mut candidates = Vec::new();
+    if let Some(program_files) = env::var_os("ProgramFiles") {
+        let program_files = PathBuf::from(program_files);
+        candidates.push(
+            program_files
+                .join("Proton")
+                .join("VPN")
+                .join("ProtonVPN.exe"),
+        );
+        candidates.push(program_files.join("ProtonVPN").join("ProtonVPN.exe"));
+    }
+    if let Some(program_files_x86) = env::var_os("ProgramFiles(x86)") {
+        candidates.push(
+            PathBuf::from(program_files_x86)
+                .join("Proton")
+                .join("VPN")
+                .join("ProtonVPN.exe"),
+        );
+    }
+    if let Some(local_app_data) = env::var_os("LOCALAPPDATA") {
+        candidates.push(PathBuf::from(local_app_data).join("Programs\\ProtonVPN\\ProtonVPN.exe"));
+        candidates.push(
+            PathBuf::from(local_app_data)
+                .join("Programs")
+                .join("Proton")
+                .join("VPN")
+                .join("ProtonVPN.exe"),
+        );
+    }
+    if let Some(app) = candidates.into_iter().find(|candidate| candidate.is_file()) {
+        if process::Command::new(app).spawn().is_ok() {
+            return;
+        }
+    }
+    open_external_url("https://protonvpn.com/download-windows");
+}
+
+#[cfg(target_os = "macos")]
+fn open_proton_vpn_app() {
+    let opened = process::Command::new("open")
+        .args(["-a", "Proton VPN"])
+        .status()
+        .is_ok_and(|status| status.success());
+    if !opened {
+        open_external_url("https://protonvpn.com/download-macos");
+    }
 }
 
 fn view_bounds(window: &Window) -> Rect {
