@@ -1582,9 +1582,10 @@ fn open_proton_vpn_app() {
         );
     }
     if let Some(local_app_data) = env::var_os("LOCALAPPDATA") {
-        candidates.push(PathBuf::from(local_app_data).join("Programs\\ProtonVPN\\ProtonVPN.exe"));
+        let local_app_data = PathBuf::from(local_app_data);
+        candidates.push(local_app_data.join("Programs\\ProtonVPN\\ProtonVPN.exe"));
         candidates.push(
-            PathBuf::from(local_app_data)
+            local_app_data
                 .join("Programs")
                 .join("Proton")
                 .join("VPN")
