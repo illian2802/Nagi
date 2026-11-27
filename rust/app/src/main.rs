@@ -414,9 +414,9 @@ impl Browser {
             home_mode,
             loading: false,
         });
-        if self.popover_open {
-            self.raise_toolbar();
-        }
+        // GTK places newly added WebViews above earlier siblings in the Fixed container.
+        // Keep the toolbar on top even when its popover is closed, or page views can cover it.
+        self.raise_toolbar();
         self.sync_toolbar();
         Ok(())
     }
@@ -692,9 +692,7 @@ impl Browser {
         let _ = self
             .toolbar
             .set_bounds(toolbar_bounds(&self.window, self.popover_open));
-        if self.popover_open {
-            self.raise_toolbar();
-        }
+        self.raise_toolbar();
         let bounds = view_bounds(&self.window);
         for tab in &self.tabs {
             let _ = tab.view.set_bounds(bounds);
@@ -709,9 +707,7 @@ impl Browser {
         let _ = self
             .toolbar
             .set_bounds(toolbar_bounds(&self.window, self.popover_open));
-        if self.popover_open {
-            self.raise_toolbar();
-        }
+        self.raise_toolbar();
     }
 
     fn sync_toolbar(&self) {
